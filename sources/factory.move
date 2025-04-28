@@ -1,10 +1,14 @@
 module bond_craft::factory{
     use bond_craft::launchpad;
+    use sui::table::{Self, Table};
+    use std::unit_test::assert_eq;
 
     public struct LaunchpadFactory has key {
         id: UID,
         template: ID,
         launchpad_count:u64,
+        launchpads: Table<address, vector<ID>>,
+        all_launchpads: vector<address>,
     }
 
     public fun create_factory(ctx: &mut TxContext, template: ID){
@@ -12,6 +16,8 @@ module bond_craft::factory{
             id: object::new(ctx),
             template,
             launchpad_count: 0,
+            launchpads: table::new(ctx),
+            all_launchpads: vector::empty<address>(),
         }, tx_context::sender(ctx));
     }
 
@@ -25,10 +31,10 @@ module bond_craft::factory{
         funding_goal: u64,
         ctx: &mut TxContext
     ) {
-        assert!(
-            funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-            0
-        );
+        assert_eq!((funding_tokens + creator_tokens + liquidity_tokens + platform_tokens), total_supply);
+        
+        
+        let creator = tx_context::sender(ctx);
         
         let launchpad = launchpad::create(
             total_supply,
@@ -39,7 +45,15 @@ module bond_craft::factory{
             funding_goal,
             ctx
         );
+        let launchpad_id = object::id(&launchpad);
+
+        if (!table::contains(&factory.launchpads, creator)) {
+            table::add(&mut factory.launchpads, creator, vector::empty());
+        };
         
-        factory.launchpad_count = factory.launchpad_count + 1;
+        let creator_launchpads = table::borrow_mut(&mut factory.launchpads, creator);
+        vector::push_back(creator_launchpads, launchpad_id);
+
+        transfer::transfer(launchpad, creator);
     }
 }
