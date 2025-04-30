@@ -187,6 +187,7 @@ module bond_craft::launchpad{
         // Example: transfer::public_transfer(funding_coins, amm_pool_address);
 
         // For now, transfer to creator as a placeholder
+        //TODO: Replace with actual AMM pool address like Cetus
         transfer::public_transfer(liquidity_coins, launchpad.creator);
         transfer::public_transfer(funding_coins, launchpad.creator);
 
@@ -211,4 +212,35 @@ module bond_craft::launchpad{
         launchpad.params.creator_tokens = 0;
     }
 
+    /// Claim platform tokens (callable by platform admin, assuming creator for simplicity).
+    public fun claim_platform_tokens<T, FUNDING_TOKEN>(
+        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+        ctx: &mut TxContext
+    ) {
+        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
+        assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
+
+        let platform_amount = launchpad.params.platform_tokens;
+        let platform_coins = coin::mint(&mut launchpad.treasury, platform_amount, ctx);
+
+        // TODO: Transfer to the address of the factory or platform admin
+        transfer::public_transfer(platform_coins, launchpad.creator);
+
+        // Set platform_tokens to 0 to prevent re-claiming
+        launchpad.params.platform_tokens = 0;
+    }
+
+    /// Withdraw collected funding tokens (callable by creator).
+    public fun withdraw_funding<T, FUNDING_TOKEN>(
+        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+        amount: u64,
+        ctx: &mut TxContext
+    ) {
+        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
+        assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
+        assert!(balance::value(&launchpad.funding_balance) >= amount, EINSUFFICIENT_TOKENS);
+
+        let funding_coins = coin::take(&mut launchpad.funding_balance, amount, ctx);
+        transfer::public_transfer(funding_coins, launchpad.creator);
+    }
 }
