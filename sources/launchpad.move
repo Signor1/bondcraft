@@ -3,6 +3,10 @@ module bond_craft::launchpad{
     use sui::balance::{Self, Balance};
     use bond_craft::bonding_curve;
 
+    // Testnet USDC type
+    use usdc::usdc::USDC;
+
+    // Error codes
     const EINVALID_ALLOCATION: u64 = 1;
     const EINVALID_NAME: u64 = 2;
     const EINVALID_SYMBOL: u64 = 3;
@@ -20,17 +24,15 @@ module bond_craft::launchpad{
     const PHASE_CLOSED: u8 = 1;
     const PHASE_LIQUIDITY_BOOTSTRAPPED: u8 = 2;
 
-    
-    public struct ProjectToken has drop {}
 
-    public struct Launchpad<phantom T, phantom FUNDING_TOKEN> has key, store{
+    public struct Launchpad<phantom T> has key, store{
         id: UID,
         treasury: TreasuryCap<T>,
         params: LaunchParams,
         state: LaunchState,
         creator: address,
-        funding_balance: Balance<FUNDING_TOKEN>, // Stores collected funding tokens
-        vesting_start_epoch: u64, // Epoch when vesting starts (set when funding closes)
+        funding_balance: Balance<USDC>, // Stores collected USDC
+        vesting_start_epoch: u64,
     }
 
     public struct LaunchParams has store{
@@ -48,13 +50,8 @@ module bond_craft::launchpad{
         phase: u8
     }
 
-    /// Create a ProjectToken instance for use as a witness.
-    public fun get_project_token(): ProjectToken {
-        ProjectToken {}
-    }
-
     /// Create a new Launchpad instance with the specified parameters.
-    public fun create<T: drop, FUNDING_TOKEN>(
+    public fun create<T: drop>(
         _witness: T,
         symbol: vector<u8>,
         name: vector<u8>,
@@ -66,7 +63,7 @@ module bond_craft::launchpad{
         platform_tokens: u64,
         funding_goal: u64,
         ctx: &mut TxContext
-    ): Launchpad<T, FUNDING_TOKEN>{
+    ): Launchpad<T>{
         assert!(
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
             EINVALID_ALLOCATION
@@ -84,7 +81,7 @@ module bond_craft::launchpad{
             decimals,
             symbol,
             name,
-            b"Project Token", // Description
+            b"Token created from Bondcraft", // Description
             option::none(), // Icon URL
             ctx
         );
@@ -92,7 +89,7 @@ module bond_craft::launchpad{
         // Freeze the CoinMetadata to make it immutable and publicly accessible
         transfer::public_freeze_object(metadata);
 
-        Launchpad<T, FUNDING_TOKEN> {
+        Launchpad<T> {
             id: object::new(ctx),
             treasury,
             params: LaunchParams {
@@ -109,7 +106,7 @@ module bond_craft::launchpad{
                 phase: 0
             },
             creator: tx_context::sender(ctx),
-            funding_balance: balance::zero<FUNDING_TOKEN>(),
+            funding_balance: balance::zero<USDC>(),
             vesting_start_epoch: 0,
         }
 
@@ -118,9 +115,9 @@ module bond_craft::launchpad{
 
     // ============== WRITE METHODS =================
     #[allow(lint(self_transfer))]
-    public fun buy_tokens<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
-        payment: Coin<FUNDING_TOKEN>,
+    public fun buy_tokens<T>(
+        launchpad: &mut Launchpad<T>,
+        payment: Coin<USDC>,
         amount: u64,
         ctx: &mut TxContext
     ){
@@ -154,8 +151,8 @@ module bond_craft::launchpad{
 
 
     /// Close the funding phase (only callable by creator).
-    public fun close_funding<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+    public fun close_funding<T>(
+        launchpad: &mut Launchpad<T>,
         ctx: &mut TxContext
     ){
         assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
@@ -166,9 +163,9 @@ module bond_craft::launchpad{
     }
     
 
-    /// Bootstrap liquidity by transferring liquidity tokens and funding tokens to an AMM pool
-    public fun Bootstrap_liquidity<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+    /// Bootstrapping liquidity by transferring liquidity tokens and funding tokens to an AMM pool
+    public fun bootstrap_liquidity<T>(
+        launchpad: &mut Launchpad<T>,
         ctx: &mut TxContext
     ){
         assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
@@ -182,11 +179,11 @@ module bond_craft::launchpad{
         let funding_amount = balance::value(&launchpad.funding_balance);
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
-        // Placeholder: Transfer to AMM pool (e.g., Cetus)
-        // Example: transfer::public_transfer(liquidity_coins, amm_pool_address);
-        // Example: transfer::public_transfer(funding_coins, amm_pool_address);
+        // If Cetus is used: Transfer to Cetus AMM pool
+        // transfer::public_transfer(liquidity_coins, amm_pool_address);
+        // transfer::public_transfer(funding_coins, amm_pool_address);
 
-        // For now, transfer to creator as a placeholder
+
         //TODO: Replace with actual AMM pool address like Cetus
         transfer::public_transfer(liquidity_coins, launchpad.creator);
         transfer::public_transfer(funding_coins, launchpad.creator);
@@ -196,8 +193,8 @@ module bond_craft::launchpad{
     }
 
     /// Claim creator tokens (with basic vesting: all tokens claimable after funding closes).
-    public fun claim_creator_tokens<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+    public fun claim_creator_tokens<T>(
+        launchpad: &mut Launchpad<T>,
         ctx: &mut TxContext
     ) {
         assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
@@ -213,8 +210,8 @@ module bond_craft::launchpad{
     }
 
     /// Claim platform tokens (callable by platform admin, assuming creator for simplicity).
-    public fun claim_platform_tokens<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+    public fun claim_platform_tokens<T>(
+        launchpad: &mut Launchpad<T>,
         ctx: &mut TxContext
     ) {
         assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
@@ -231,8 +228,8 @@ module bond_craft::launchpad{
     }
 
     /// Withdraw collected funding tokens (callable by creator).
-    public fun withdraw_funding<T, FUNDING_TOKEN>(
-        launchpad: &mut Launchpad<T, FUNDING_TOKEN>,
+    public fun withdraw_funding<T>(
+        launchpad: &mut Launchpad<T>,
         amount: u64,
         ctx: &mut TxContext
     ) {
@@ -248,18 +245,69 @@ module bond_craft::launchpad{
     // =================== READ METHODS ==================
 
     /// Get the total token supply of the launchpad.
-    public fun total_supply<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+    public fun total_supply<T>(launchpad: &Launchpad<T>): u64 
+    {
         launchpad.params.total_supply
     }
 
     /// Get the number of tokens allocated for funding.
-    public fun funding_tokens<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+    public fun funding_tokens<T>(launchpad: &Launchpad<T>): u64 {
         launchpad.params.funding_tokens
     }
 
     /// Get the number of tokens allocated for the creator.
-    public fun creator_tokens<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+    public fun creator_tokens<T>(launchpad: &Launchpad<T>): u64 {
         launchpad.params.creator_tokens
     }
-    
+
+    /// Get the number of tokens allocated for liquidity.
+    public fun liquidity_tokens<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.params.liquidity_tokens
+    }
+
+    /// Get the number of tokens allocated for the platform.
+    public fun platform_tokens<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.params.platform_tokens
+    }
+
+    /// Get the funding goal in funding tokens (e.g., USDC).
+    public fun funding_goal<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.params.funding_goal
+    }
+
+    /// Get the bonding curve steepness factor (k).
+    public fun k<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.params.k
+    }
+
+    /// Get the number of tokens sold so far.
+    public fun tokens_sold<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.state.tokens_sold
+    }
+
+    /// Get the current phase of the launchpad (0 = Open, 1 = Closed, 2 = Liquidity Bootstrapped).
+    public fun phase<T>(launchpad: &Launchpad<T>): u8 {
+        launchpad.state.phase
+    }
+
+    /// Get the creator's address.
+    public fun creator<T>(launchpad: &Launchpad<T>): address {
+        launchpad.creator
+    }
+
+    /// Get the current token price based on the bonding curve.
+    public fun current_price<T>(launchpad: &Launchpad<T>): u64 {
+        bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.k)
+    }
+
+    /// Get the amount of funding tokens collected.
+    public fun funding_balance<T>(launchpad: &Launchpad<T>): u64 {
+        balance::value(&launchpad.funding_balance)
+    }
+
+    /// Get the vesting start epoch.
+    public fun vesting_start_epoch<T>(launchpad: &Launchpad<T>): u64 {
+        launchpad.vesting_start_epoch
+    }
+
 }

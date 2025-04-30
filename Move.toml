@@ -12,6 +12,8 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 # Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 
+usdc = { git = "https://github.com/circlefin/stablecoin-sui.git", subdir = "packages/usdc", rev = "master" }
+
 # For local dependencies use `local = path`. Path is relative to the package root
 # Local = { local = "../path/to" }
 
