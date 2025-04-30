@@ -243,4 +243,23 @@ module bond_craft::launchpad{
         let funding_coins = coin::take(&mut launchpad.funding_balance, amount, ctx);
         transfer::public_transfer(funding_coins, launchpad.creator);
     }
+
+
+    // =================== READ METHODS ==================
+
+    /// Get the total token supply of the launchpad.
+    public fun total_supply<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+        launchpad.params.total_supply
+    }
+
+    /// Get the number of tokens allocated for funding.
+    public fun funding_tokens<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+        launchpad.params.funding_tokens
+    }
+
+    /// Get the number of tokens allocated for the creator.
+    public fun creator_tokens<T, FUNDING_TOKEN>(launchpad: &Launchpad<T, FUNDING_TOKEN>): u64 {
+        launchpad.params.creator_tokens
+    }
+    
 }
