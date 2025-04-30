@@ -1,10 +1,18 @@
 module bond_craft::launchpad{
-    use sui::coin::{Coin, TreasuryCap};
-    use sui::balance::{Balance, Self};
-    use sui::math;
+    use sui::coin::{Self, TreasuryCap};
+    // use sui::balance::{Self, Balance};
+    use bond_craft::bonding_curve;
 
+    const EINVALID_ALLOCATION: u64 = 1;
+    const EINVALID_NAME: u64 = 2;
+    const EINVALID_SYMBOL: u64 = 3;
+    const EINVALID_DECIMALS: u64 = 4;
+    const EINVALID_FUNDING_GOAL: u64 = 5;
+    const EINVALID_TOTAL_SUPPLY: u64 = 6;
 
-    public struct Launchpad<phantom T> has key{
+    public struct ProjectToken has drop {}
+
+    public struct Launchpad<phantom T> has key, store{
         id: UID,
         treasury: TreasuryCap<T>,
         params: LaunchParams,
@@ -27,7 +35,15 @@ module bond_craft::launchpad{
         phase: u8
     }
 
-    public fun create(
+    public fun get_project_token(): ProjectToken {
+        ProjectToken {}
+    }
+
+    public fun create<T: drop>(
+        _witness: T,
+        symbol: vector<u8>,
+        name: vector<u8>,
+        decimals: u8,
         total_supply: u64,
         funding_tokens: u64,
         creator_tokens: u64,
@@ -36,10 +52,31 @@ module bond_craft::launchpad{
         funding_goal: u64,
         ctx: &mut TxContext
     ): Launchpad<T>{
-        let k = calculate_k(funding_goal, funding_tokens);
-        let (treasury, metadata) = coin::create_currency(total_supply, ctx);
+        assert!(
+            funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
+            EINVALID_ALLOCATION
+        );
+        assert!(&name != vector::empty<u8>(), EINVALID_NAME);
+        assert!(&symbol != vector::empty<u8>(), EINVALID_SYMBOL);
+        assert!(decimals >= 6, EINVALID_DECIMALS);
+        assert!(funding_goal > 0, EINVALID_FUNDING_GOAL);
+        assert!(total_supply > 0, EINVALID_TOTAL_SUPPLY);
 
-        Launchpad {
+        let k = bonding_curve::calculate_k(funding_goal, funding_tokens);
+
+        let (treasury, metadata) = coin::create_currency<T>(
+            _witness,
+            decimals,
+            symbol,
+            name,
+            b"Project Token", // Description
+            option::none(), // Icon URL
+            ctx
+        );
+
+        transfer::public_freeze_object(metadata);
+
+        Launchpad<T> {
             id: object::new(ctx),
             treasury,
             params: LaunchParams {
@@ -57,10 +94,7 @@ module bond_craft::launchpad{
             },
             creator: tx_context::sender(ctx)
         }
+
     }
 
-    fun calculate_k(funding_goal: u64, max_tokens: u64): u64 {
-        (math::checked_mul(funding_goal, 2000000) / 
-        math::checked_mul(max_tokens, max_tokens))
-    }
 }
