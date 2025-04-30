@@ -1,7 +1,7 @@
 module bond_craft::factory{
-    use bond_craft::launchpad;
     use sui::table::{Self, Table};
-    use bond_craft::launchpad as launchpad_module;
+    use bond_craft::launchpad;
+
 
     // Error codes
     const ENOT_FOUND: u64 = 0;
@@ -13,8 +13,8 @@ module bond_craft::factory{
     public struct LaunchpadFactory has key {
         id: UID,
         launchpad_count: u64,
-        all_launchpads: vector<ID>,
         launchpads: Table<address, vector<ID>>,
+        all_launchpads: vector<ID>,
     }
 
     public fun create_factory(ctx: &mut TxContext){
@@ -29,8 +29,9 @@ module bond_craft::factory{
     }
 
     #[allow(lint(self_transfer))]
-    public fun create_launchpad(
+    public fun create_launchpad<T: drop>(
         factory: &mut LaunchpadFactory,
+        _witness: T,
         symbol: vector<u8>,
         name: vector<u8>,
         decimals: u8,
@@ -52,8 +53,8 @@ module bond_craft::factory{
         
         let creator = tx_context::sender(ctx);
 
-        let launchpad = launchpad::create(
-            launchpad_module::get_project_token(),
+        let launchpad = launchpad::create<T>(
+            _witness,
             symbol,
             name,
             decimals,
