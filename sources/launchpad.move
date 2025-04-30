@@ -31,6 +31,7 @@ module bond_craft::launchpad{
         params: LaunchParams,
         state: LaunchState,
         creator: address,
+        platform_admin: address,
         funding_balance: Balance<USDC>, // Stores collected USDC
         vesting_start_epoch: u64,
     }
@@ -62,6 +63,7 @@ module bond_craft::launchpad{
         liquidity_tokens: u64,
         platform_tokens: u64,
         funding_goal: u64,
+        platform_admin: address,
         ctx: &mut TxContext
     ): Launchpad<T>{
         assert!(
@@ -106,6 +108,7 @@ module bond_craft::launchpad{
                 phase: 0
             },
             creator: tx_context::sender(ctx),
+            platform_admin,
             funding_balance: balance::zero<USDC>(),
             vesting_start_epoch: 0,
         }
@@ -214,14 +217,14 @@ module bond_craft::launchpad{
         launchpad: &mut Launchpad<T>,
         ctx: &mut TxContext
     ) {
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
+        assert!(launchpad.platform_admin == tx_context::sender(ctx), EUNAUTHORIZED);
         assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
 
         let platform_amount = launchpad.params.platform_tokens;
         let platform_coins = coin::mint(&mut launchpad.treasury, platform_amount, ctx);
 
-        // TODO: Transfer to the address of the factory or platform admin
-        transfer::public_transfer(platform_coins, launchpad.creator);
+        // Transfer platform tokens to the platform admin
+        transfer::public_transfer(platform_coins, launchpad.platform_admin);
 
         // Set platform_tokens to 0 to prevent re-claiming
         launchpad.params.platform_tokens = 0;
@@ -308,6 +311,11 @@ module bond_craft::launchpad{
     /// Get the vesting start epoch.
     public fun vesting_start_epoch<T>(launchpad: &Launchpad<T>): u64 {
         launchpad.vesting_start_epoch
+    }
+
+    /// Get the platform admin .
+    public fun platform_admin<T>(launchpad: &Launchpad<T>): address {
+        launchpad.platform_admin
     }
 
 }
