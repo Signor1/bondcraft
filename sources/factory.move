@@ -52,6 +52,7 @@ module bond_craft::factory{
         assert!(decimals >= 6, EINVALID_DECIMALS);
         
         let creator = tx_context::sender(ctx);
+        let platform_admin = creator;
 
         let launchpad = launchpad::create<T>(
             _witness,
@@ -64,6 +65,7 @@ module bond_craft::factory{
             liquidity_tokens,
             platform_tokens,
             funding_goal,
+            platform_admin,
             ctx
         );
         let launchpad_id = object::id(&launchpad);
