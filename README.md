@@ -28,15 +28,6 @@ graph TD
     B -->|Vesting| H[Creator/Platform]
 ```
 
-## 📖 Table of Contents
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Architecture](#architecture)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-
 ## 🛠 Installation
 
 ### Prerequisites
