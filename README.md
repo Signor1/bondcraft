@@ -2,7 +2,6 @@
 
 [![Sui](https://img.shields.io/badge/Sui-1f8ece?style=for-the-badge&logo=sui&logoColor=white)](https://sui.io/)
 [![Move](https://img.shields.io/badge/Move-008080?style=for-the-badge&logo=rust&logoColor=white)](https://move-language.github.io/move/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/signor1/bondcraft/build.yml?style=for-the-badge)](https://github.com/signor1/bondcraft/actions)
 
 **BondCraft** is a decentralized token launchpad built on the [Sui blockchain](https://sui.io/), leveraging the [Move programming language](https://move-language.github.io/move/) to enable secure, transparent, and efficient token launches. Integrated with [Cetus Protocol](https://www.cetus.zone/), BondCraft facilitates seamless liquidity bootstrapping for new tokens using bonding curves.
