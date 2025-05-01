@@ -15,36 +15,6 @@
 - **Vesting System**: Secure vesting for team/platform tokens
 - **Sui Blockchain**: High-throughput transactions with low fees
 
-### Visual breakdown of key states and transitions
-
-```mermaid
-stateDiagram-v2
-    [*] --> FactoryCreated
-    FactoryCreated --> LaunchpadDeployed: create_launchpad()
-    
-    state LaunchpadDeployed {
-        [*] --> Open
-        Open --> Closed: Funding goal reached\nOR close_funding()
-        Closed --> LiquidityBootstrapped: bootstrap_liquidity()
-        
-        state Open {
-            BuyTokens --> UpdatePrice
-            UpdatePrice --> CheckGoal
-            CheckGoal --> Closed: Goal met
-        }
-        
-        state Closed {
-            VestingStarted
-        }
-        
-        state LiquidityBootstrapped {
-            LiquidityPoolCreated
-        }
-    }
-    
-    LiquidityBootstrapped --> [*]: withdraw_funding()
-```
-
 ### Key Components
 
 ```mermaid
