@@ -2,39 +2,53 @@
 
 [![Sui](https://img.shields.io/badge/Sui-1f8ece?style=for-the-badge&logo=sui&logoColor=white)](https://sui.io/)
 [![Move](https://img.shields.io/badge/Move-008080?style=for-the-badge&logo=rust&logoColor=white)](https://move-language.github.io/move/)
+[![Cetus Protocol](https://img.shields.io/badge/Cetus%20Protocol-00C4B4?style=for-the-badge&logo=blockchain&logoColor=white)](https://www.cetus.zone/)
+[![Pyth Network](https://img.shields.io/badge/Pyth%20Network-6B46C1?style=for-the-badge&logo=oracle&logoColor=white)](https://pyth.network/)
+[![UNI](https://img.shields.io/badge/UNI-FF007A?style=for-the-badge&logo=uniswap&logoColor=white)](https://uniswap.org/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/signor1/bondcraft/build.yml?style=for-the-badge)](https://github.com/signor1/bondcraft/actions)
 
-**BondCraft** is a decentralized token launchpad built on the [Sui blockchain](https://sui.io/), leveraging the [Move programming language](https://move-language.github.io/move/) to enable secure, transparent, and efficient token launches. Integrated with [Cetus Protocol](https://www.cetus.zone/), BondCraft facilitates seamless liquidity bootstrapping for new tokens using bonding curves.
+**BondCraft** is a decentralized token launchpad built on the [Sui blockchain](https://sui.io/), leveraging the [Move programming language](https://move-language.github.io/move/) to enable secure, transparent, and efficient token launches. Integrated with [Cetus Protocol](https://www.cetus.zone/) for seamless liquidity bootstrapping, BondCraft uses bonding curves to ensure fair token distribution. Designed for the Sui Overflow Hackathon, BondCraft aligns with the DeFi and Degen tracks, with planned integrations for [Pyth Network](https://pyth.network/) (real-time price oracles) and [UNI (meme)](https://uniswap.org/) (meme token launches).
 
 ## 🚀 Features
 
-- **Token Creation**: Deploy tokens with configurable supply/funding goals
-- **Bonding Curve Pricing**: Fair distribution via dynamic pricing models
-- **Cetus Integration**: Auto-create liquidity pools (TOKEN/USDC)
-- **Vesting System**: Secure vesting for team/platform tokens
-- **Sui Blockchain**: High-throughput transactions with low fees
+- **Token Creation**: Deploy tokens with customizable supply and funding goals.
+- **Bonding Curve Pricing**: Dynamic pricing for fair and transparent token distribution.
+- **Cetus Protocol Integration**: Automatically create TOKEN/USDC liquidity pools on Cetus with a 0.05% fee tier.
+- **Vesting System**: Secure vesting schedules for creator and platform tokens.
+- **Sui Blockchain**: High-throughput, low-fee transactions for scalable launches.
+- **Future Integrations**:
+  - **Pyth Network**: Real-time price oracles for accurate bonding curve pricing (DeFi track).
+  - **UNI (meme)**: Support for meme token launches with community-driven liquidity pools (Degen track).
 
-### Key Components
+## 📖 Architecture
 
 ```mermaid
-graph TD
-    A[Factory Contract] -->|Creates| B(Launchpad)
-    B --> C{Bonding Curve}
-    B --> D[USDC Vault]
-    B --> E[Cetus LP]
-    C -->|Dynamic Pricing| F[Token Buyers]
-    D -->|Funds| E
-    E -->|Liquidity| G[Market Makers]
-    B -->|Vesting| H[Creator/Platform]
+sequenceDiagram
+    participant Creator
+    participant Factory
+    participant Launchpad
+    participant Cetus
+
+    Creator->>Factory: create_launchpad()
+    Factory->>Launchpad: Deploy new instance
+    Creator->>Launchpad: buy_tokens()
+    loop Funding Phase
+        Launchpad->>Launchpad: Update bonding curve price
+    end
+    Creator->>Launchpad: close_funding()
+    Creator->>Launchpad: bootstrap_liquidity()
+    Launchpad->>Cetus: Create pool (TOKEN/USDC)
+    Cetus-->>Launchpad: LP Position NFT
+    Launchpad->>Creator: Transfer LP NFT
 ```
 
 ## 🛠 Installation
 
 ### Prerequisites
 
-- [Sui CLI](https://docs.sui.io/build/cli-client) ≥ v1.0.0
+- [Sui CLI](https://docs.sui.io/build/cli-client) ≥ v1.26.0
 - [Rust](https://www.rust-lang.org/tools/install)
-- Testnet USDC (`sui client faucet`)
+- Testnet USDC: [Circle](https://faucet.circle.com/)
 
 ```bash
 git clone https://github.com/signor1/bondcraft.git
@@ -46,53 +60,51 @@ sui move build
 
 ```toml
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
-usdc = { git = "https://github.com/circlefin/stablecoin-sui.git", subdir = "packages/usdc", rev = "master" }
-CetusClmm = { git = "https://github.com/CetusProtocol/cetus-clmm-sui.git", subdir = "contracts", rev = "main" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.26.0" }
+CetusClmm = { git = "https://github.com/CetusProtocol/cetus-clmm-interface.git", subdir = "sui/cetus_clmm", rev = "testnet-v1.26.0", override = true }
+USDC = { git = "https://github.com/circlefin/stablecoin-sui.git", subdir = "packages/usdc", rev = "testnet" }
 ```
 
 ## 🎮 Usage
 
-### Deploy Launchpad
+### Deploy Contracts
 
 ```bash
 sui client publish --gas-budget 100000000
 ```
 
-### Create Token Launch
+### Create Launchpad
 
 ```bash
-sui client call --package <PACKAGE_ID> --module factory --function create_launchpad \
+sui client call --package <PACKAGE_ID> \
+  --module factory \
+  --function create_launchpad \
   --type-args bond_craft::test_witness::TEST_TOKEN \
-  --args <FACTORY_ID> "{\"symbol\": \"BOND\", \"decimals\": 9, \"total_supply\": 1000000000}" \
+  --args <FACTORY_ID> "b\"SYMBOL\"" "b\"Token Name\"" 9 1000000000 500000000 200000000 200000000 100000000 500000000 \
   --gas-budget 10000000
 ```
 
 ### Bootstrap Liquidity
 
 ```bash
-sui client call --package <PACKAGE_ID> --module launchpad --function bootstrap_liquidity \
-  --args <LAUNCHPAD_ID> <CETUS_POOL_ID> \
-  --gas-budget 10000000
+sui client call --package <PACKAGE_ID> \
+  --module launchpad \
+  --function bootstrap_liquidity \
+  --type-args <TOKEN_TYPE> \
+  --args <LAUNCHPAD_ID> <CETUS_CONFIG_ID> <CETUS_POOLS_ID> <METADATA_T_ID> <METADATA_USDC_ID> <CLOCK_ID> \
+  --gas-budget 100000000
 ```
 
-## 📜 Architecture
+## 📜 Contract Structure
 
-| Contract          | Description                           |
-|-------------------|---------------------------------------|
-| `factory.move`    | Launchpad creation & management       |
-| `launchpad.move`  | Token sales & liquidity bootstrapping |
-| `bonding_curve.move` | Dynamic pricing algorithms         |
-
-Key Features:
-
-- Ownership verification (`EUNAUTHORIZED` checks)
-- Phase transitions (`EINVALID_PHASE` validation)
-- Cetus pool integration (0.3% default fee tier)
+| Module | Description |
+|--------|-------------|
+| `factory.move` | Manages launchpad creation and tracking |
+| `launchpad.move` | Handles token sales, vesting, and Cetus integration |
+| `bonding_curve.move` | Implements price calculations `P(x) = kx/1e9` |
+| `pool.move` | Cetus CLMM pool creation logic |
 
 ## 🧪 Testing
-
-Run test suite:
 
 ```bash
 sui move test
