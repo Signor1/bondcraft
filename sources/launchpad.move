@@ -1,7 +1,12 @@
 module bond_craft::launchpad{
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
     use sui::balance::{Self, Balance};
+    use std::string;
     use bond_craft::bonding_curve;
+    use bond_craft::pool;
+    use cetus_clmm::config::GlobalConfig;
+    use cetus_clmm::factory::Pools;
+    use sui::clock::Clock;
 
     // Testnet USDC type
     use usdc::usdc::USDC;
@@ -169,6 +174,11 @@ module bond_craft::launchpad{
     /// Bootstrapping liquidity by transferring liquidity tokens and funding tokens to an AMM pool
     public fun bootstrap_liquidity<T>(
         launchpad: &mut Launchpad<T>,
+        cetus_config: &GlobalConfig,
+        pools: &mut Pools,
+        metadata_t: &CoinMetadata<T>,
+        metadata_usdc: &CoinMetadata<USDC>,
+        clock: &Clock,
         ctx: &mut TxContext
     ){
         assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
@@ -182,14 +192,23 @@ module bond_craft::launchpad{
         let funding_amount = balance::value(&launchpad.funding_balance);
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
-        // If Cetus is used: Transfer to Cetus AMM pool
-        // transfer::public_transfer(liquidity_coins, amm_pool_address);
-        // transfer::public_transfer(funding_coins, amm_pool_address);
+        // Calculate final price from bonding curve
+        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.k);
 
-
-        //TODO: Replace with actual AMM pool address like Cetus
-        transfer::public_transfer(liquidity_coins, launchpad.creator);
-        transfer::public_transfer(funding_coins, launchpad.creator);
+        // Create Cetus pool
+        pool::create_pool<T, USDC>(
+            cetus_config,
+            pools,
+            liquidity_coins,
+            funding_coins,
+            final_price,
+            500, // 0.05% fee tier
+            string::utf8(b"Bondcraft Pool"),
+            metadata_t,
+            metadata_usdc,
+            clock,
+            ctx
+        );
 
         // Update phase
         launchpad.state.phase = PHASE_LIQUIDITY_BOOTSTRAPPED;

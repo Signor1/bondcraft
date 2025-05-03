@@ -14,6 +14,8 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 usdc = { git = "https://github.com/circlefin/stablecoin-sui.git", subdir = "packages/usdc", rev = "master" }
 
+CetusClmm = { git = "https://github.com/CetusProtocol/cetus-clmm-interface.git", subdir = "sui/cetus_clmm", rev = "testnet-v1.26.0", override = true }
+
 # For local dependencies use `local = path`. Path is relative to the package root
 # Local = { local = "../path/to" }
 
@@ -23,6 +25,7 @@ usdc = { git = "https://github.com/circlefin/stablecoin-sui.git", subdir = "pack
 
 [addresses]
 bond_craft = "0x0"
+# cetus_clmm = "0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca" # Cetus Testnet 
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.
