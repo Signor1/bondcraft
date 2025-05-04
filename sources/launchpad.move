@@ -81,7 +81,13 @@ module bond_craft::launchpad{
         assert!(funding_goal > 0, EINVALID_FUNDING_GOAL);
         assert!(total_supply > 0, EINVALID_TOTAL_SUPPLY);
 
-        let k = bonding_curve::calculate_k(funding_goal, funding_tokens);
+        let k = bonding_curve::calculate_k(
+            funding_goal, 
+            6, // USDC has 6 decimals
+            funding_tokens,
+            decimals, // Project token decimals from function params
+            );
+
 
         let (treasury, metadata) = coin::create_currency<T>(
             _witness,
@@ -136,7 +142,7 @@ module bond_craft::launchpad{
         );
 
         // Calculate required payment based on bonding curve
-        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.k);
+        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k);
         let total_cost = current_price * amount;
         assert!(coin::value(&payment) >= total_cost, EINSUFFICIENT_PAYMENT);
 
@@ -193,7 +199,7 @@ module bond_craft::launchpad{
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
         // Calculate final price from bonding curve
-        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.k);
+        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9,  launchpad.params.k);
 
         // Create Cetus pool
         pool::create_pool<T, USDC>(
@@ -319,7 +325,7 @@ module bond_craft::launchpad{
 
     /// Get the current token price based on the bonding curve.
     public fun current_price<T>(launchpad: &Launchpad<T>): u64 {
-        bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.k)
+        bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k)
     }
 
     /// Get the amount of funding tokens collected.
