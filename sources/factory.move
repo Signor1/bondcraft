@@ -29,9 +29,8 @@ module bond_craft::factory{
     }
 
     #[allow(lint(self_transfer))]
-    public fun create_launchpad<T: drop>(
+    public fun create_launchpad(
         factory: &mut LaunchpadFactory,
-        _witness: T,
         symbol: vector<u8>,
         name: vector<u8>,
         decimals: u8,
@@ -54,8 +53,8 @@ module bond_craft::factory{
         let creator = tx_context::sender(ctx);
         let platform_admin = creator;
 
-        let launchpad = launchpad::create<T>(
-            _witness,
+        let launchpad = launchpad::create(
+            ctx,
             symbol,
             name,
             decimals,
@@ -65,23 +64,43 @@ module bond_craft::factory{
             liquidity_tokens,
             platform_tokens,
             funding_goal,
-            platform_admin,
-            ctx
+            platform_admin
         );
         let launchpad_id = object::id(&launchpad);
 
-        // Add to creator-specific launchpads
-        if (!table::contains(&factory.launchpads, creator)) {
-            table::add(&mut factory.launchpads, creator, vector::empty());
-        };
-        
-        vector::push_back(table::borrow_mut(&mut factory.launchpads, creator), launchpad_id);
-        vector::push_back(&mut factory.all_launchpads, launchpad_id);
-        factory.launchpad_count = factory.launchpad_count + 1;
+        // Updating factory state using helper functions
+        add_launchpad_to_creator(factory, creator, launchpad_id);
+        add_to_all_launchpads(factory, launchpad_id);
+        increment_launchpad_count(factory);
 
         transfer::public_transfer(launchpad, creator);
     }
 
+     // Helper function to check if a creator has launchpads
+    public fun has_launchpads(factory: &LaunchpadFactory, creator: address): bool {
+        table::contains(&factory.launchpads, creator)
+    }
+
+    // Helper function to add a launchpad ID to a creator’s list
+    public fun add_launchpad_to_creator(factory: &mut LaunchpadFactory, creator: address, launchpad_id: ID) {
+        if (!table::contains(&factory.launchpads, creator)) {
+            table::add(&mut factory.launchpads, creator, vector::empty());
+        };
+        vector::push_back(table::borrow_mut(&mut factory.launchpads, creator), launchpad_id);
+    }
+
+    // Helper function to add a launchpad ID to all_launchpads
+    public fun add_to_all_launchpads(factory: &mut LaunchpadFactory, launchpad_id: ID) {
+        vector::push_back(&mut factory.all_launchpads, launchpad_id);
+    }
+
+    // Helper function to increment launchpad_count
+    public fun increment_launchpad_count(factory: &mut LaunchpadFactory) {
+        factory.launchpad_count = factory.launchpad_count + 1;
+    }
+
+    //============GETTER FUNCTIONS================
+    
     public fun get_launchpads_by_creator(
         factory: &LaunchpadFactory,
         creator: address
