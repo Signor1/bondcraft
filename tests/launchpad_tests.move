@@ -196,4 +196,40 @@ module bond_craft::launchpad_tests {
         test_scenario::end(scenario);
     }
 
+
+    // Test: Close funding phase
+    #[test]
+    fun test_close_funding() {
+        let mut scenario = setup_scenario();
+        let creator = @0xA;
+        
+        // Create launchpad
+        let launchpad = setup_test_launchpad(&mut scenario, creator);
+        transfer::public_transfer(launchpad, creator);
+
+        // Advance epoch to ensure vesting_start_epoch > 0
+        test_scenario::next_epoch(&mut scenario, creator);
+        
+        // Close funding
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            // Before closing
+            assert!(launchpad::phase(&launchpad) == 0, 0); // PHASE_OPEN
+            
+            // Close funding
+            launchpad::close_funding(&mut launchpad, ctx);
+            
+            // After closing
+            assert!(launchpad::phase(&launchpad) == 1, 1); // PHASE_CLOSED
+            assert!(launchpad::vesting_start_epoch(&launchpad) > 0, 2);
+            
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        test_scenario::end(scenario);
+    }
+
 }
