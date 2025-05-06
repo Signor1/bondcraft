@@ -4,12 +4,11 @@
 [![Move](https://img.shields.io/badge/Move-008080?style=for-the-badge&logo=rust&logoColor=white)](https://move-language.github.io/move/)
 [![Cetus Protocol](https://img.shields.io/badge/Cetus%20Protocol-00C4B4?style=for-the-badge&logo=blockchain&logoColor=white)](https://www.cetus.zone/)
 [![Pyth Network](https://img.shields.io/badge/Pyth%20Network-6B46C1?style=for-the-badge&logo=oracle&logoColor=white)](https://pyth.network/)
-[![UNI](https://img.shields.io/badge/UNI-FF007A?style=for-the-badge&logo=uniswap&logoColor=white)](https://uniswap.org/)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/signor1/bondcraft/build.yml?style=for-the-badge)](https://github.com/signor1/bondcraft/actions)
+[![UNI](https://img.shields.io/badge/UNI-00C4B4?style=for-the-badge&logo=sui&logoColor=white)](https://unicoinsui.com/)
 
-**BondCraft** is a decentralized token launchpad built on the [Sui blockchain](https://sui.io/), leveraging the [Move programming language](https://move-language.github.io/move/) to enable secure, transparent, and efficient token launches. Integrated with [Cetus Protocol](https://www.cetus.zone/) for seamless liquidity bootstrapping, BondCraft uses bonding curves to ensure fair token distribution. Designed for the Sui Overflow Hackathon, BondCraft aligns with the DeFi and Degen tracks, with planned integrations for [Pyth Network](https://pyth.network/) (real-time price oracles) and [UNI (meme)](https://uniswap.org/) (meme token launches).
+**BondCraft** is a decentralized token launchpad built on the [Sui blockchain](https://sui.io/), leveraging the [Move programming language](https://move-language.github.io/move/) to enable secure, transparent, and efficient token launches. Integrated with [Cetus Protocol](https://www.cetus.zone/) for seamless liquidity bootstrapping, BondCraft uses bonding curves to ensure fair token distribution. Designed for the Sui Overflow Hackathon, BondCraft aligns with the DeFi and Degen tracks, with planned integrations for [Pyth Network](https://pyth.network/) (real-time price oracles) and [UNI](https://unicoinsui.com/) (meme token launches).
 
-## 🚀 Features
+## Features
 
 - **Token Creation**: Deploy tokens with customizable supply and funding goals.
 - **Bonding Curve Pricing**: Dynamic pricing for fair and transparent token distribution.
@@ -18,9 +17,9 @@
 - **Sui Blockchain**: High-throughput, low-fee transactions for scalable launches.
 - **Future Integrations**:
   - **Pyth Network**: Real-time price oracles for accurate bonding curve pricing (DeFi track).
-  - **UNI (meme)**: Support for meme token launches with community-driven liquidity pools (Degen track).
+  - **UNI (Unicoinsui)**: Support for meme token launches with community-driven liquidity pools (Degen track).
 
-## 📖 Architecture
+## Architecture
 
 ```mermaid
 sequenceDiagram
@@ -41,6 +40,22 @@ sequenceDiagram
     Cetus-->>Launchpad: LP Position NFT
     Launchpad->>Creator: Transfer LP NFT
 ```
+
+### Roadmap
+
+- **Pyth Network Integration (DeFi):**
+  - Deploy Pyth price feeds for USDC and SUI on testnet.
+  - Update bonding curve to use real-time oracle pricing.
+  - Testnet demo for oracle-driven token launches.
+
+- **UNI (Unicoinsui) Integration (Degen):**
+  - Add meme token creation with simplified parameters.
+  - Create UNI/SUI liquidity pools on Cetus (0.25% fee tier).
+  - Testnet demo with community airdrop incentives.
+
+- **Mainnet Launch:**
+  - Deploy Pyth and UNI integrations on Sui mainnet.
+  - Explore cross-chain support via Wormhole or CCTP.
 
 ## 🛠 Installation
 
