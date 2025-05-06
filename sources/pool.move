@@ -140,4 +140,26 @@ module bond_craft::pool{
     public fun calculate_sqrt_price(final_price: u64): u128 {
         price_to_sqrt_price(final_price, 9, 6)
     }
+
+
+    #[test_only]
+    public fun create_pool_test<T, USDC>(
+        token: Coin<T>,
+        usdc: Coin<USDC>,
+        tick_spacing: u32,
+        ctx: &mut TxContext
+    ) {
+        // Validate inputs (mimic create_pool logic)
+        assert!(tick_spacing == 100 || tick_spacing == 500 || tick_spacing == 3000, EINVALID_TICK_SPACING);
+        assert!(coin::value(&token) >= 1000 && coin::value(&usdc) >= 1000, EINSUFFICIENT_LIQUIDITY);
+
+        // Simulate pool creation by transferring coins back
+        let sender = tx_context::sender(ctx);
+        transfer::public_transfer(token, sender);
+        transfer::public_transfer(usdc, sender);
+        
+        // Simulate position NFT as a dummy coin
+        let position = coin::mint_for_testing<T>(1000, ctx);
+        transfer::public_transfer(position, sender);
+    }
 }

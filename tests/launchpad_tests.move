@@ -1,32 +1,9 @@
 module bond_craft::launchpad_tests {
     use sui::test_scenario::{Self, Scenario};
     use sui::coin::{Self, Coin};
-    use sui::clock::{Self, Clock};
-    use std::string::{Self, String};
 
     use bond_craft::launchpad::{Self, Launchpad, LaunchpadWitness};
-    use bond_craft::pool;
     use usdc::usdc::USDC;
-
-
-    // Mock Cetus types for testing bootstrap_liquidity
-    public struct GlobalConfig has key, store {
-        id: UID,
-    }
-
-    public struct Pools has key, store {
-        id: UID,
-    }
-
-    #[allow(unused_type_parameter)]
-    public struct CoinMetadata<T> has key, store {
-        id: UID,
-        decimals: u8,
-        name: String,
-        symbol: String,
-        description: String,
-        icon_url: option::Option<String>,
-    }
 
     // Helper function to set up a scenario
     fun setup_scenario(): Scenario {
@@ -40,47 +17,6 @@ module bond_craft::launchpad_tests {
 
         let usdc = coin::mint_for_testing<USDC>(amount, ctx);
         transfer::public_transfer(usdc, recipient);
-    }
-
-    // Helper to create a mock clock
-    fun create_mock_clock(scenario: &mut Scenario, timestamp_ms: u64): Clock {
-        test_scenario::next_tx(scenario, @0x1);
-        let ctx = test_scenario::ctx(scenario);
-
-        let mut clock = clock::create_for_testing(ctx);
-        clock::set_for_testing(&mut clock, timestamp_ms);
-        clock
-    }
-
-    // Helper to create mock Cetus GlobalConfig
-    fun create_mock_global_config(scenario: &mut Scenario): GlobalConfig {
-        test_scenario::next_tx(scenario, @0x1);
-        let ctx = test_scenario::ctx(scenario);
-
-        GlobalConfig { id: object::new(ctx) }
-    }
-
-    // Helper to create mock Cetus Pools
-    fun create_mock_pools(scenario: &mut Scenario): Pools {
-        test_scenario::next_tx(scenario, @0x1);
-        let ctx = test_scenario::ctx(scenario);
-
-        Pools { id: object::new(ctx) }
-    }
-
-    // Helper to create mock CoinMetadata
-    fun create_mock_coin_metadata<T>(scenario: &mut Scenario, decimals: u8): CoinMetadata<T> {
-        test_scenario::next_tx(scenario, @0x1);
-        let ctx = test_scenario::ctx(scenario);
-
-        CoinMetadata<T> {
-            id: object::new(ctx),
-            decimals,
-            name: string::utf8(b"Mock Token"),
-            symbol: string::utf8(b"MOCK"),
-            description: string::utf8(b"Mock metadata"),
-            icon_url: option::none(),
-        }
     }
 
     // Helper to set up a test launchpad
