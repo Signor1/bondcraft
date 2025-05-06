@@ -410,4 +410,26 @@ module bond_craft::launchpad{
         }
     }
 
+    #[test_only]
+    public fun bootstrap_liquidity_test(
+        launchpad: &mut Launchpad,
+        ctx: &mut TxContext
+    ) {
+        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
+        assert!(launchpad.state.phase == PHASE_CLOSED, EINVALID_PHASE);
+
+        // Simulate minting liquidity tokens
+        let liquidity_amount = launchpad.params.liquidity_tokens;
+        let liquidity_coins = coin::mint(&mut launchpad.treasury, liquidity_amount, ctx);
+        transfer::public_transfer(liquidity_coins, tx_context::sender(ctx));
+
+        // Simulate transferring funding tokens
+        let funding_amount = balance::value(&launchpad.funding_balance);
+        let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
+        transfer::public_transfer(funding_coins, tx_context::sender(ctx));
+
+        // Update phase
+        launchpad.state.phase = PHASE_LIQUIDITY_BOOTSTRAPPED;
+    }
+
 }

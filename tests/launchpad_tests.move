@@ -469,6 +469,76 @@ module bond_craft::launchpad_tests {
     }
 
 
+    // Test: Bootstrap liquidity
+    #[test]
+    fun test_bootstrap_liquidity() {
+        let mut scenario = setup_scenario();
+        let creator = @0xA;
+        let buyer = @0xB;
+        
+        // Create launchpad
+        let launchpad = setup_test_launchpad(&mut scenario, creator);
+        transfer::public_transfer(launchpad, creator);
+        
+        // Create mock USDC for buyer
+        create_mock_usdc(&mut scenario, 10_000_000_000, buyer); // 10B USDC
+        
+        // Buy tokens to add funding
+        test_scenario::next_tx(&mut scenario, buyer);
+        {
+            let mut launchpad = test_scenario::take_from_address<Launchpad>(&scenario, creator);
+            let usdc = test_scenario::take_from_sender<Coin<USDC>>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            // Buy 1M tokens
+            let amount_to_buy = 1_000_000_000;
+            launchpad::buy_tokens(&mut launchpad, usdc, amount_to_buy, ctx);
+            let funding_balance = launchpad::funding_balance(&launchpad);
+            assert!(funding_balance > 0, 0);
+            assert!(launchpad::phase(&launchpad) == 0, 100); // Ensure still PHASE_OPEN
+            
+            test_scenario::return_to_address(creator, launchpad);
+        };
+        
+        // Advance epoch to ensure vesting_start_epoch > 0
+        test_scenario::next_epoch(&mut scenario, creator);
+        
+        // Close funding
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            launchpad::close_funding(&mut launchpad, ctx);
+            assert!(launchpad::phase(&launchpad) == 1, 1); // PHASE_CLOSED
+            
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        
+        // Bootstrap liquidity
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+           let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
     
+            // Before bootstrapping
+            assert!(launchpad::phase(&launchpad) == 1, 2); // PHASE_CLOSED
+            assert!(launchpad::funding_balance(&launchpad) > 0, 3);
+            assert!(launchpad::liquidity_tokens(&launchpad) == 2_000_000_000, 4);
+    
+            // Mock pool creation
+            launchpad::bootstrap_liquidity_test(&mut launchpad, ctx);
+    
+            // After bootstrapping
+            assert!(launchpad::phase(&launchpad) == 2, 5); // PHASE_LIQUIDITY_BOOTSTRAPPED
+            assert!(launchpad::funding_balance(&launchpad) == 0, 6); // Funding tokens transferred
+            
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        test_scenario::end(scenario);
+    }
+
 
 }
