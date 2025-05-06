@@ -232,4 +232,58 @@ module bond_craft::launchpad_tests {
         test_scenario::end(scenario);
     }
 
+    // Test: Claim creator tokens
+    #[test]
+    fun test_claim_creator_tokens() {
+        let mut scenario = setup_scenario();
+        let creator = @0xA;
+        
+        // Create launchpad
+        let launchpad = setup_test_launchpad(&mut scenario, creator);
+        transfer::public_transfer(launchpad, creator);
+        
+        // Advance epoch to ensure vesting_start_epoch > 0
+        test_scenario::next_epoch(&mut scenario, creator);
+        
+        // Close funding first
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            launchpad::close_funding(&mut launchpad, ctx);
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        // Claim creator tokens
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            // Before claiming
+            assert!(launchpad::creator_tokens(&launchpad) == 2_000_000_000, 0);
+            
+            // Claim tokens
+            launchpad::claim_creator_tokens(&mut launchpad, ctx);
+            
+            // After claiming
+            assert!(launchpad::creator_tokens(&launchpad) == 0, 1);
+            
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        // Verify creator received tokens
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            assert!(test_scenario::has_most_recent_for_sender<Coin<LaunchpadWitness>>(&scenario), 2);
+            let tokens = test_scenario::take_from_sender<Coin<LaunchpadWitness>>(&scenario);
+            assert!(coin::value(&tokens) == 2_000_000_000, 3);
+            
+            test_scenario::return_to_sender(&scenario, tokens);
+        };
+        
+        test_scenario::end(scenario);
+    }
+
 }
