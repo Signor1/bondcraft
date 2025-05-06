@@ -23,11 +23,14 @@ module bond_craft::launchpad{
     const EUNAUTHORIZED: u64 = 9;
     const EINSUFFICIENT_TOKENS: u64 = 10;
     const EVESTING_NOT_READY: u64 = 11;
+    const EEXCESSIVE_PURCHASE: u64 = 12;
 
     // Phase constants
     const PHASE_OPEN: u8 = 0;
     const PHASE_CLOSED: u8 = 1;
     const PHASE_LIQUIDITY_BOOTSTRAPPED: u8 = 2;
+
+    const MAX_TOKENS_PER_TX: u64 = 1_000_000_000_000_000_000; // 1M tokens, 9 decimals
 
     // OTW - witness for creating a new token
     public struct LaunchpadWitness has drop {}
@@ -147,6 +150,7 @@ module bond_craft::launchpad{
             launchpad.state.tokens_sold + amount <= launchpad.params.funding_tokens,
             EINSUFFICIENT_TOKENS
         );
+        assert!(amount <= MAX_TOKENS_PER_TX, EEXCESSIVE_PURCHASE);
 
         // Calculate required payment based on bonding curve
         let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k);

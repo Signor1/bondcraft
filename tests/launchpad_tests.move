@@ -3,7 +3,6 @@ module bond_craft::launchpad_tests {
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use std::string::{Self, String};
-    use std::option;
 
     use bond_craft::launchpad::{Self, Launchpad, LaunchpadWitness};
     use bond_craft::pool;
@@ -95,7 +94,7 @@ module bond_craft::launchpad_tests {
         let creator_tokens = 2_000_000_000; // 20% for creator
         let liquidity_tokens = 2_000_000_000; // 20% for liquidity
         let platform_tokens = 1_000_000_000; // 10% for platform
-        let funding_goal = 5_000_000; // 5M USDC (6 decimals)
+        let funding_goal = 5_000_000_000_000; // 5M USDC (6 decimals)
         let platform_admin = creator;
 
         let launchpad = launchpad::create_test(
@@ -136,7 +135,7 @@ module bond_craft::launchpad_tests {
             assert!(launchpad::creator_tokens(&launchpad) == 2_000_000_000, 2);
             assert!(launchpad::liquidity_tokens(&launchpad) == 2_000_000_000, 3);
             assert!(launchpad::platform_tokens(&launchpad) == 1_000_000_000, 4);
-            assert!(launchpad::funding_goal(&launchpad) == 5_000_000, 5);
+            assert!(launchpad::funding_goal(&launchpad) == 5_000_000_000_000, 5);
             assert!(launchpad::phase(&launchpad) == 0, 6); // PHASE_OPEN
             assert!(launchpad::tokens_sold(&launchpad) == 0, 7);
             assert!(launchpad::creator(&launchpad) == creator, 8);
@@ -308,7 +307,7 @@ module bond_craft::launchpad_tests {
                 2_000_000_000,
                 2_000_000_000,
                 1_000_000_000,
-                5_000_000,
+                5_000_000_000_000,
                 platform_admin
             );
             transfer::public_transfer(launchpad, creator);
@@ -358,5 +357,118 @@ module bond_craft::launchpad_tests {
         
         test_scenario::end(scenario);
     }
+
+    // Test: Withdraw funding with multiple buyers
+    #[test]
+    fun test_withdraw_funding() {
+        let mut scenario = setup_scenario();
+        let creator = @0xA;
+        let buyer1 = @0xB;
+        let buyer2 = @0xC;
+        let buyer3 = @0xD;
+        
+        // Create launchpad
+        let launchpad = setup_test_launchpad(&mut scenario, creator);
+        transfer::public_transfer(launchpad, creator);
+        
+        // Create mock USDC for buyers
+        create_mock_usdc(&mut scenario, 10_000_000_000, buyer1); // 10B USDC
+        create_mock_usdc(&mut scenario, 10_000_000_000, buyer2); // 10B USDC
+        create_mock_usdc(&mut scenario, 10_000_000_000, buyer3); // 10B USDC
+        
+        // Buyer 1: Buy tokens
+        test_scenario::next_tx(&mut scenario, buyer1);
+        {
+            let mut launchpad = test_scenario::take_from_address<Launchpad>(&scenario, creator);
+            let usdc = test_scenario::take_from_sender<Coin<USDC>>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            let amount_to_buy = 100_000; // 100K tokens
+            launchpad::buy_tokens(&mut launchpad, usdc, amount_to_buy, ctx);
+            let funding_balance = launchpad::funding_balance(&launchpad);
+            assert!(funding_balance > 0, 0);
+            assert!(launchpad::phase(&launchpad) == 0, 100); // Ensure PHASE_OPEN
+            
+            test_scenario::return_to_address(creator, launchpad);
+        };
+        
+        // Buyer 2: Buy tokens
+        test_scenario::next_tx(&mut scenario, buyer2);
+        {
+            let mut launchpad = test_scenario::take_from_address<Launchpad>(&scenario, creator);
+            let usdc = test_scenario::take_from_sender<Coin<USDC>>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            let amount_to_buy = 100_000; // 100K tokens
+            launchpad::buy_tokens(&mut launchpad, usdc, amount_to_buy, ctx);
+            let funding_balance = launchpad::funding_balance(&launchpad);
+            assert!(funding_balance > 0, 1);
+            assert!(launchpad::phase(&launchpad) == 0, 101); // Ensure PHASE_OPEN
+            
+            test_scenario::return_to_address(creator, launchpad);
+        };
+        
+        // Buyer 3: Buy tokens
+        test_scenario::next_tx(&mut scenario, buyer3);
+        {
+            let mut launchpad = test_scenario::take_from_address<Launchpad>(&scenario, creator);
+            let usdc = test_scenario::take_from_sender<Coin<USDC>>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            let amount_to_buy = 100_000; // 100K tokens
+            launchpad::buy_tokens(&mut launchpad, usdc, amount_to_buy, ctx);
+            let funding_balance = launchpad::funding_balance(&launchpad);
+            assert!(funding_balance > 0, 2);
+            assert!(launchpad::phase(&launchpad) == 0, 102); // Ensure PHASE_OPEN
+            
+            test_scenario::return_to_address(creator, launchpad);
+        };
+        
+        // Advance epoch to ensure vesting_start_epoch > 0
+        test_scenario::next_epoch(&mut scenario, creator);
+        
+        // Close funding
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            assert!(launchpad::phase(&launchpad) == 0, 103); // Ensure PHASE_OPEN
+            launchpad::close_funding(&mut launchpad, ctx);
+            assert!(launchpad::phase(&launchpad) == 1, 104); // Ensure PHASE_CLOSED
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        // Withdraw funding
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            let funding_balance = launchpad::funding_balance(&launchpad);
+            assert!(funding_balance > 0, 3);
+            
+            launchpad::withdraw_funding(&mut launchpad, funding_balance, ctx);
+            
+            assert!(launchpad::funding_balance(&launchpad) == 0, 4);
+            
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        // Verify creator received USDC
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            assert!(test_scenario::has_most_recent_for_sender<Coin<USDC>>(&scenario), 5);
+            let usdc = test_scenario::take_from_sender<Coin<USDC>>(&scenario);
+            assert!(coin::value(&usdc) > 0, 6);
+            
+            test_scenario::return_to_sender(&scenario, usdc);
+        };
+        
+        test_scenario::end(scenario);
+    }
+
+
+    
 
 }
