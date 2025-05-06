@@ -286,4 +286,77 @@ module bond_craft::launchpad_tests {
         test_scenario::end(scenario);
     }
 
+    // Test: Claim platform tokens
+    #[test]
+    fun test_claim_platform_tokens() {
+        let mut scenario = setup_scenario();
+        let creator = @0xA;
+        let platform_admin = @0xC;
+        
+        // Create launchpad
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            let launchpad = launchpad::create_test(
+                ctx,
+                b"TEST",
+                b"Test Token",
+                9,
+                10_000_000_000,
+                5_000_000_000,
+                2_000_000_000,
+                2_000_000_000,
+                1_000_000_000,
+                5_000_000,
+                platform_admin
+            );
+            transfer::public_transfer(launchpad, creator);
+        };
+        
+        // Advance epoch to ensure vesting_start_epoch > 0
+        test_scenario::next_epoch(&mut scenario, creator);
+        
+        // Close funding
+        test_scenario::next_tx(&mut scenario, creator);
+        {
+            let mut launchpad = test_scenario::take_from_sender<Launchpad>(&scenario);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            launchpad::close_funding(&mut launchpad, ctx);
+            test_scenario::return_to_sender(&scenario, launchpad);
+        };
+        
+        // Claim platform tokens
+        test_scenario::next_tx(&mut scenario, platform_admin);
+        {
+            let mut launchpad = test_scenario::take_from_address<Launchpad>(&scenario, creator);
+            let ctx = test_scenario::ctx(&mut scenario);
+            
+            // Before claiming
+            assert!(launchpad::platform_tokens(&launchpad) == 1_000_000_000, 0);
+            assert!(launchpad::platform_admin(&launchpad) == platform_admin, 1);
+            
+            // Claim tokens
+            launchpad::claim_platform_tokens(&mut launchpad, ctx);
+            
+            // After claiming
+            assert!(launchpad::platform_tokens(&launchpad) == 0, 2);
+            
+            test_scenario::return_to_address(creator, launchpad);
+        };
+        
+        // Verify platform admin received tokens
+        test_scenario::next_tx(&mut scenario, platform_admin);
+        {
+            assert!(test_scenario::has_most_recent_for_sender<Coin<LaunchpadWitness>>(&scenario), 3);
+            let tokens = test_scenario::take_from_sender<Coin<LaunchpadWitness>>(&scenario);
+            assert!(coin::value(&tokens) == 1_000_000_000, 4);
+            
+            test_scenario::return_to_sender(&scenario, tokens);
+        };
+        
+        test_scenario::end(scenario);
+    }
+
 }
