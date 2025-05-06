@@ -7,6 +7,7 @@ module bond_craft::launchpad{
     use cetus_clmm::config::GlobalConfig;
     use cetus_clmm::factory::Pools;
     use sui::clock::Clock;
+    use sui::event;
 
     // Testnet USDC type
     use usdc::usdc::USDC;
@@ -61,6 +62,63 @@ module bond_craft::launchpad{
         phase: u8
     }
 
+    // Event structs
+    public struct LaunchpadCreatedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        symbol: vector<u8>,
+        name: vector<u8>,
+        decimals: u8,
+        total_supply: u64,
+        funding_goal: u64,
+        k: u64,
+        epoch: u64,
+    }
+
+    public struct TokensPurchasedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        amount: u64,
+        total_cost: u64,
+        current_price: u64,
+        epoch: u64,
+    }
+
+    public struct FundingClosedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        vesting_start_epoch: u64,
+        epoch: u64,
+    }
+
+    public struct LiquidityBootstrappedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        final_price: u64,
+        epoch: u64,
+    }
+
+    public struct CreatorTokensClaimedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        amount: u64,
+        epoch: u64,
+    }
+
+    public struct PlatformTokensClaimedEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        amount: u64,
+        epoch: u64,
+    }
+
+    public struct FundingWithdrawnEvent has copy, drop {
+        sender: address,
+        launchpad_id: address,
+        amount: u64,
+        epoch: u64,
+    }
+
     public fun create_witness(_: &TxContext): LaunchpadWitness {
         LaunchpadWitness {}
     }
@@ -112,7 +170,7 @@ module bond_craft::launchpad{
         // Freeze the CoinMetadata to make it immutable and publicly accessible
         transfer::public_freeze_object(metadata);
 
-        Launchpad {
+        let launchpad = Launchpad {
             id: object::new(ctx),
             treasury,
             params: LaunchParams {
@@ -132,7 +190,22 @@ module bond_craft::launchpad{
             platform_admin,
             funding_balance: balance::zero<USDC>(),
             vesting_start_epoch: 0,
-        }
+        };
+
+        // Emit event
+        event::emit(LaunchpadCreatedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            symbol,
+            name,
+            decimals,
+            total_supply,
+            funding_goal,
+            k,
+            epoch: tx_context::epoch(ctx),
+        });
+
+        launchpad
 
     }
 
@@ -172,6 +245,16 @@ module bond_craft::launchpad{
             launchpad.state.phase = PHASE_CLOSED;
             launchpad.vesting_start_epoch = tx_context::epoch(ctx);
         };
+
+        // Emit event
+        event::emit(TokensPurchasedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            amount,
+            total_cost,
+            current_price,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
 
@@ -185,6 +268,14 @@ module bond_craft::launchpad{
 
         launchpad.state.phase = PHASE_CLOSED;
         launchpad.vesting_start_epoch = tx_context::epoch(ctx);
+
+        // Emit event
+        event::emit(FundingClosedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            vesting_start_epoch: launchpad.vesting_start_epoch,
+            epoch: tx_context::epoch(ctx),
+        });
     }
     
 
@@ -229,6 +320,14 @@ module bond_craft::launchpad{
 
         // Update phase
         launchpad.state.phase = PHASE_LIQUIDITY_BOOTSTRAPPED;
+
+        // Emit event
+        event::emit(LiquidityBootstrappedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            final_price,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
     /// Claim creator tokens (with basic vesting: all tokens claimable after funding closes).
@@ -246,6 +345,14 @@ module bond_craft::launchpad{
 
         // Setting creator_tokens to 0 to prevent re-claiming
         launchpad.params.creator_tokens = 0;
+
+        // Emit event
+        event::emit(CreatorTokensClaimedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            amount: creator_amount,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
     /// Claim platform tokens (callable by platform admin, assuming creator for simplicity).
@@ -264,6 +371,14 @@ module bond_craft::launchpad{
 
         // Set platform_tokens to 0 to prevent re-claiming
         launchpad.params.platform_tokens = 0;
+
+        // Emit event
+        event::emit(PlatformTokensClaimedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            amount: platform_amount,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
     /// Withdraw collected funding tokens (callable by creator).
@@ -278,6 +393,14 @@ module bond_craft::launchpad{
 
         let funding_coins = coin::take(&mut launchpad.funding_balance, amount, ctx);
         transfer::public_transfer(funding_coins, launchpad.creator);
+
+        // Emit event
+        event::emit(FundingWithdrawnEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            amount,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
 
@@ -387,7 +510,7 @@ module bond_craft::launchpad{
 
         let k = bonding_curve::calculate_k(funding_goal, 6, funding_tokens, decimals);
 
-        Launchpad {
+        let launchpad = Launchpad {
             id: object::new(ctx),
             treasury,
             params: LaunchParams {
@@ -407,7 +530,22 @@ module bond_craft::launchpad{
             platform_admin,
             funding_balance: balance::zero<USDC>(),
             vesting_start_epoch: 0,
-        }
+        };
+
+        // Emit event
+        event::emit(LaunchpadCreatedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            symbol,
+            name,
+            decimals,
+            total_supply,
+            funding_goal,
+            k,
+            epoch: tx_context::epoch(ctx),
+        });
+
+        launchpad
     }
 
     #[test_only]
@@ -430,6 +568,14 @@ module bond_craft::launchpad{
 
         // Update phase
         launchpad.state.phase = PHASE_LIQUIDITY_BOOTSTRAPPED;
+
+        // Emit event
+        event::emit(LiquidityBootstrappedEvent {
+            sender: tx_context::sender(ctx),
+            launchpad_id: object::uid_to_address(&launchpad.id),
+            final_price: bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k),
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
 }

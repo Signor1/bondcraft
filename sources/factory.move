@@ -1,7 +1,7 @@
 module bond_craft::factory{
     use sui::table::{Self, Table};
     use bond_craft::launchpad;
-
+    use sui::event;
 
     // Error codes
     const ENOT_FOUND: u64 = 0;
@@ -17,15 +17,43 @@ module bond_craft::factory{
         all_launchpads: vector<ID>,
     }
 
+    // Event structs
+    public struct FactoryCreatedEvent has copy, drop {
+        sender: address,
+        factory_id: address,
+        epoch: u64,
+    }
+
+    public struct LaunchpadCreatedEvent has copy, drop {
+        sender: address,
+        factory_id: address,
+        launchpad_id: address,
+        symbol: vector<u8>,
+        name: vector<u8>,
+        decimals: u8,
+        total_supply: u64,
+        funding_goal: u64,
+        epoch: u64,
+    }
+
     public fun create_factory(ctx: &mut TxContext){
-        transfer::transfer(LaunchpadFactory{
+        let sender = tx_context::sender(ctx);
+
+        let factory = LaunchpadFactory {
             id: object::new(ctx),
             launchpad_count: 0,
             launchpads: table::new(ctx),
             all_launchpads: vector::empty<ID>(),
-        }, 
-        tx_context::sender(ctx)
-        );
+        };
+        let factory_id = object::uid_to_address(&factory.id);
+        transfer::transfer(factory, sender);
+
+        // Emit event
+        event::emit(FactoryCreatedEvent {
+            sender,
+            factory_id,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
     #[allow(lint(self_transfer))]
@@ -67,6 +95,7 @@ module bond_craft::factory{
             platform_admin
         );
         let launchpad_id = object::id(&launchpad);
+        let factory_id = object::uid_to_address(&factory.id);
 
         // Updating factory state using helper functions
         add_launchpad_to_creator(factory, creator, launchpad_id);
@@ -74,6 +103,19 @@ module bond_craft::factory{
         increment_launchpad_count(factory);
 
         transfer::public_transfer(launchpad, creator);
+
+        // Emit event
+        event::emit(LaunchpadCreatedEvent {
+            sender: creator,
+            factory_id,
+            launchpad_id: object::id_to_address(&launchpad_id),
+            symbol,
+            name,
+            decimals,
+            total_supply,
+            funding_goal,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
      // Helper function to check if a creator has launchpads

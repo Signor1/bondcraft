@@ -1,8 +1,9 @@
 module bond_craft::pool{
     use sui::coin::{Self, Coin, CoinMetadata};
     use sui::clock::{Clock};
-    use std::string::{String};
+    use std::string::{Self, String};
     use sui::math;
+    use sui::event;
 
     use cetus_clmm::pool_creator;
     use cetus_clmm::factory::{Pools};
@@ -17,6 +18,18 @@ module bond_craft::pool{
     const ETICK_NOT_ALIGNED: u64 = 4;
     const EINSUFFICIENT_LIQUIDITY: u64 = 5;
     const EINVALID_PRICE: u64 = 6;
+
+    // Events
+    public struct PoolCreatedEvent has copy, drop {
+        sender: address,
+        token_type: String, // Token type (e.g., LaunchpadWitness)
+        usdc_type: String, // USDC type
+        fee_tier: u32, // Tick spacing (e.g., 500 for 0.05%)
+        final_price: u64, // Final price in USDC decimals
+        sqrt_price: u128, // Initial sqrt price
+        tick: I32, // Initial tick
+        epoch: u64, // Epoch of creation
+    }
 
     #[allow(deprecated_usage)]
     public fun price_to_sqrt_price(price: u64, decimals_t: u8, decimals_usdc: u8): u128{
@@ -134,6 +147,18 @@ module bond_craft::pool{
         transfer::public_transfer(position, sender);
         transfer::public_transfer(remaining_token, sender);
         transfer::public_transfer(remaining_usdc, sender);
+
+        // Emit event
+        event::emit(PoolCreatedEvent{
+            sender,
+            token_type: string::utf8(b"LaunchpadWitness"),
+            usdc_type: string::utf8(b"USDC"),
+            fee_tier: tick_spacing,
+            final_price,
+            sqrt_price,
+            tick,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 
     /// Calculates sqrt price from bonding curve's final price.
