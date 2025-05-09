@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { Toaster } from 'sonner';
+import { Provider } from "@/config/Provider";
 
 
 export const metadata: Metadata = {
@@ -63,8 +64,10 @@ export default function RootLayout({
       <body
         className="w-full min-h-screen antialiased"
       >
-        {children}
-        <Toaster richColors position="top-right" />
+        <Provider>
+          {children}
+          <Toaster richColors position="top-right" />
+        </Provider>
       </body>
     </html>
   );
