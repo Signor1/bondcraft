@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { Toaster } from 'sonner';
 import { Provider } from "@/config/Provider";
+import { ThemeProvider } from "@/components/shared/theme-provider";
+import Navbar from "@/components/shared/navbar";
+import Footer from "@/components/shared/footer";
 
 
 export const metadata: Metadata = {
@@ -60,13 +63,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className="w-full min-h-screen antialiased"
       >
         <Provider>
-          {children}
-          <Toaster richColors position="top-right" />
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <Toaster richColors position="top-right" />
+          </ThemeProvider>
         </Provider>
       </body>
     </html>
