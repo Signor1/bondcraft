@@ -95,39 +95,51 @@ const LandingPage = () => {
                     <h2 className="mb-10 text-center text-2xl font-bold tracking-tight">Roadmap</h2>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="card-background rounded-lg border p-6">
-                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                <Image src="/placeholder.svg?height=24&width=24" alt="Pyth Network" className="h-6 w-6" />
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+                                <Image src="/cetus.webp" alt="Cetus Protocol" className="h-full w-full" width={1000} height={600} quality={100} priority />
+                            </div>
+                            <h3 className="mb-2 text-lg font-bold">Cetus Integration</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Real-time price oracles for bonding curve pricing, providing accurate market data for token sales.
+                            </p>
+                            <Badge variant="outline" className="mt-4">
+                                Integrated
+                            </Badge>
+                        </div>
+                        <div className="card-background rounded-lg border p-6">
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+                                <Image src="/pyth.jpg" alt="Pyth Network" className="h-full w-full" width={1280} height={720} quality={100} priority />
                             </div>
                             <h3 className="mb-2 text-lg font-bold">Pyth Network Integration</h3>
                             <p className="text-sm text-muted-foreground">
                                 Real-time price oracles for bonding curve pricing, providing accurate market data for token sales.
                             </p>
                             <Badge variant="outline" className="mt-4">
-                                Coming Q2 2025
+                                Coming Soon
                             </Badge>
                         </div>
                         <div className="card-background rounded-lg border p-6">
-                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                <Image src="/placeholder.svg?height=24&width=24" alt="UNI" className="h-6 w-6" />
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+                                <Image src="/uni.jpg" alt="UNI" className="h-full w-full" width={1262} height={624} quality={100} priority />
                             </div>
                             <h3 className="mb-2 text-lg font-bold">UNI Integration</h3>
                             <p className="text-sm text-muted-foreground">
                                 Support for meme token launches with UNI/SUI pools, perfect for community-driven projects.
                             </p>
                             <Badge variant="outline" className="mt-4">
-                                Coming Q3 2025
+                                Coming Soon
                             </Badge>
                         </div>
                         <div className="card-background rounded-lg border p-6">
-                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                <Image src="/placeholder.svg?height=24&width=24" alt="Cross-chain" className="h-6 w-6" />
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+                                <Image src="/wormhole.jpg" alt="Cross-chain" className="h-full w-full" width={796} height={411} quality={100} priority />
                             </div>
                             <h3 className="mb-2 text-lg font-bold">Cross-Chain Support</h3>
                             <p className="text-sm text-muted-foreground">
                                 Expand launchpad capabilities to other chains via Wormhole, creating a multi-chain token ecosystem.
                             </p>
                             <Badge variant="outline" className="mt-4">
-                                Coming Q4 2025
+                                Coming Soon
                             </Badge>
                         </div>
                     </div>
