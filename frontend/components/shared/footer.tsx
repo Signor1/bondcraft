@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { Github, Twitter, DiscIcon as DiscordIcon } from "lucide-react"
+import { Github, Twitter } from "lucide-react"
 
 export default function Footer() {
     return (
-        <footer className="border-t bg-background py-6">
+        <footer className="border-t bg-background py-6 px-5">
             <div className="container flex flex-col items-center gap-4 md:flex-row md:justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/" className="text-sm font-medium">
@@ -13,10 +13,10 @@ export default function Footer() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <Link href="/docs" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+                    <Link href="/" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
                         Documentation
                     </Link>
-                    <Link href="/terms" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+                    <Link href="/" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
                         Terms
                     </Link>
                     <Link href="/faq" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
@@ -26,7 +26,7 @@ export default function Footer() {
 
                 <div className="flex items-center gap-2">
                     <Link
-                        href="https://github.com"
+                        href="https://github.com/Signor1/bondcraft"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground transition-colors hover:text-foreground"
@@ -42,15 +42,6 @@ export default function Footer() {
                     >
                         <Twitter className="h-4 w-4" />
                         <span className="sr-only">Twitter</span>
-                    </Link>
-                    <Link
-                        href="https://discord.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                        <DiscordIcon className="h-4 w-4" />
-                        <span className="sr-only">Discord</span>
                     </Link>
                 </div>
             </div>
