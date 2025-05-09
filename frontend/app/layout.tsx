@@ -65,7 +65,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className="w-full min-h-screen antialiased"
+        className="w-full min-h-screen antialiased overflow-x-hidden"
       >
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
