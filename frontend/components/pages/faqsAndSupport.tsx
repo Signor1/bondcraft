@@ -10,7 +10,7 @@ import { Github } from "lucide-react"
 
 export default function FaqsAndSupport() {
     return (
-        <div className="container mx-auto py-20 px-4">
+        <div className="container mx-auto py-20 md:px-8 px-4">
             <div className="mb-8 max-w-4xl mx-auto space-y-2">
                 <h1 className="text-3xl  font-bold">FAQ & Support</h1>
                 <p className="text-muted-foreground ">Frequently asked questions and support resources</p>

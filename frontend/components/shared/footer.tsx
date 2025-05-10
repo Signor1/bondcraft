@@ -4,7 +4,7 @@ import { Github, Twitter } from "lucide-react"
 export default function Footer() {
     return (
         <footer className="border-t bg-background py-6 px-5">
-            <div className="container flex flex-col items-center gap-4 md:flex-row md:justify-between">
+            <div className="container mx-auto flex flex-col items-center gap-4 md:flex-row md:justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/" className="text-sm font-medium">
                         BondCraft

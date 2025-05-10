@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "./mode-toggle"
 import { Menu, X } from "lucide-react"
-import WalletConnect from "./wallet-connect"
+import { ConnectButton } from '@mysten/dapp-kit';
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -39,7 +39,7 @@ export default function Navbar() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <WalletConnect />
+                    <ConnectButton />
                     <ModeToggle />
 
                     <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
