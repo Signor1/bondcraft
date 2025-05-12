@@ -12,12 +12,12 @@ module bond_craft::pool{
     use integer_mate::i32::{Self, I32};
 
     // Error codes
-    const EINVALID_TICK_RANGE: u64 = 1;
-    const EINVALID_LIQUIDITY: u64 = 2;
-    const EINVALID_TICK_SPACING: u64 = 3;
-    const ETICK_NOT_ALIGNED: u64 = 4;
-    const EINSUFFICIENT_LIQUIDITY: u64 = 5;
-    const EINVALID_PRICE: u64 = 6;
+    const EInvalidTickRange: u64 = 1;
+    const EInvalidLiquidity: u64 = 2;
+    const EInvalidTickSpacing: u64 = 3;
+    const ETickNotAligned: u64 = 4;
+    const EInsufficientLiquidity: u64 = 5;
+    const EInvalidPrice: u64 = 6;
 
     // Events
     public struct PoolCreatedEvent has copy, drop {
@@ -46,7 +46,7 @@ module bond_craft::pool{
 
         // Calculate sqrt(price) * 2^96
         // Since sqrt requires u64, ensure adjusted_price is within bounds
-        assert!(adjusted_price <= 0xFFFFFFFFFFFFFFFF, EINVALID_PRICE); // Ensure no overflow
+        assert!(adjusted_price <= 0xFFFFFFFFFFFFFFFF, EInvalidPrice); // Ensure no overflow
         let sqrt_price = (math::sqrt(adjusted_price) as u128) * (1u128 << 96);
 
         // Clamp sqrt_price to Cetus bounds
@@ -95,7 +95,7 @@ module bond_craft::pool{
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(tick_spacing == 100 || tick_spacing == 500 || tick_spacing == 3000, EINVALID_TICK_SPACING);
+        assert!(tick_spacing == 100 || tick_spacing == 500 || tick_spacing == 3000, EInvalidTickSpacing);
 
         // Calculate tick from price
         let tick = price_to_tick(final_price, 9, 6);
@@ -108,18 +108,18 @@ module bond_craft::pool{
         // Validate tick range
         assert!(
             i32::gte(tick_lower, tick_math::min_tick()) && i32::lte(tick_upper, tick_math::max_tick()),
-            EINVALID_TICK_RANGE
+            EInvalidTickRange
         );
 
         // Ensure ticks are aligned with tick_spacing
-        assert!(tick_math::is_valid_index(tick_lower, tick_spacing), ETICK_NOT_ALIGNED);
-        assert!(tick_math::is_valid_index(tick_upper, tick_spacing), ETICK_NOT_ALIGNED);
+        assert!(tick_math::is_valid_index(tick_lower, tick_spacing), ETickNotAligned);
+        assert!(tick_math::is_valid_index(tick_upper, tick_spacing), ETickNotAligned);
 
         // Validate liquidity
         let token_value = coin::value(&token);
         let usdc_value = coin::value(&usdc);
-        assert!(token_value > 0 && usdc_value > 0, EINVALID_LIQUIDITY);
-        assert!(token_value >= 1000 && usdc_value >= 1000, EINSUFFICIENT_LIQUIDITY);
+        assert!(token_value > 0 && usdc_value > 0, EInvalidLiquidity);
+        assert!(token_value >= 1000 && usdc_value >= 1000, EInsufficientLiquidity);
 
         // Convert ticks to u32 for create_pool_v2
         let tick_lower_u32 = i32::as_u32(i32::abs(tick_lower));
@@ -175,8 +175,8 @@ module bond_craft::pool{
         ctx: &mut TxContext
     ) {
         // Validate inputs (mimic create_pool logic)
-        assert!(tick_spacing == 100 || tick_spacing == 500 || tick_spacing == 3000, EINVALID_TICK_SPACING);
-        assert!(coin::value(&token) >= 1000 && coin::value(&usdc) >= 1000, EINSUFFICIENT_LIQUIDITY);
+        assert!(tick_spacing == 100 || tick_spacing == 500 || tick_spacing == 3000, EInvalidTickSpacing);
+        assert!(coin::value(&token) >= 1000 && coin::value(&usdc) >= 1000, EInsufficientLiquidity);
 
         // Simulate pool creation by transferring coins back
         let sender = tx_context::sender(ctx);
