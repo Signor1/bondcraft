@@ -13,18 +13,18 @@ module bond_craft::launchpad{
     use usdc::usdc::USDC;
 
     // Error codes
-    const EINVALID_ALLOCATION: u64 = 1;
-    const EINVALID_NAME: u64 = 2;
-    const EINVALID_SYMBOL: u64 = 3;
-    const EINVALID_DECIMALS: u64 = 4;
-    const EINVALID_FUNDING_GOAL: u64 = 5;
-    const EINVALID_TOTAL_SUPPLY: u64 = 6;
-    const EINSUFFICIENT_PAYMENT: u64 = 7;
-    const EINVALID_PHASE: u64 = 8;
-    const EUNAUTHORIZED: u64 = 9;
-    const EINSUFFICIENT_TOKENS: u64 = 10;
-    const EVESTING_NOT_READY: u64 = 11;
-    const EEXCESSIVE_PURCHASE: u64 = 12;
+    const EInvalidAllocation: u64 = 1;
+    const EInvalidName: u64 = 2;
+    const EInvalidSymbol: u64 = 3;
+    const EInvalidDecimals: u64 = 4;
+    const EInvalidFundingGoal: u64 = 5;
+    const EInvalidTotalSupply: u64 = 6;
+    const EInsufficientPayment: u64 = 7;
+    const EInvalidPhase: u64 = 8;
+    const EUnauthorized: u64 = 9;
+    const EInsufficientTokens: u64 = 10;
+    const EVestingNotReady: u64 = 11;
+    const EExcessivePurchase: u64 = 12;
 
     // Phase constants
     const PHASE_OPEN: u8 = 0;
@@ -139,13 +139,13 @@ module bond_craft::launchpad{
     ): Launchpad {
         assert!(
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-            EINVALID_ALLOCATION
+            EInvalidAllocation
         );
-        assert!(&name != vector::empty<u8>(), EINVALID_NAME);
-        assert!(&symbol != vector::empty<u8>(), EINVALID_SYMBOL);
-        assert!(decimals >= 6, EINVALID_DECIMALS);
-        assert!(funding_goal > 0, EINVALID_FUNDING_GOAL);
-        assert!(total_supply > 0, EINVALID_TOTAL_SUPPLY);
+        assert!(&name != vector::empty<u8>(), EInvalidName);
+        assert!(&symbol != vector::empty<u8>(), EInvalidSymbol);
+        assert!(decimals >= 6, EInvalidDecimals);
+        assert!(funding_goal > 0, EInvalidFundingGoal);
+        assert!(total_supply > 0, EInvalidTotalSupply);
 
         let witness = create_witness(ctx);
 
@@ -218,17 +218,17 @@ module bond_craft::launchpad{
         amount: u64,
         ctx: &mut TxContext
     ){
-        assert!(launchpad.state.phase == PHASE_OPEN, EINVALID_PHASE);
+        assert!(launchpad.state.phase == PHASE_OPEN, EInvalidPhase);
         assert!(
             launchpad.state.tokens_sold + amount <= launchpad.params.funding_tokens,
-            EINSUFFICIENT_TOKENS
+            EInsufficientTokens
         );
-        assert!(amount <= MAX_TOKENS_PER_TX, EEXCESSIVE_PURCHASE);
+        assert!(amount <= MAX_TOKENS_PER_TX, EExcessivePurchase);
 
         // Calculate required payment based on bonding curve
         let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k);
         let total_cost = current_price * amount;
-        assert!(coin::value(&payment) >= total_cost, EINSUFFICIENT_PAYMENT);
+        assert!(coin::value(&payment) >= total_cost, EInsufficientPayment);
 
         // Store payment in funding_balance
         coin::put(&mut launchpad.funding_balance, payment);
@@ -263,8 +263,8 @@ module bond_craft::launchpad{
         launchpad: &mut Launchpad,
         ctx: &mut TxContext
     ){
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase == PHASE_OPEN, EINVALID_PHASE);
+        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase == PHASE_OPEN, EInvalidPhase);
 
         launchpad.state.phase = PHASE_CLOSED;
         launchpad.vesting_start_epoch = tx_context::epoch(ctx);
@@ -289,8 +289,8 @@ module bond_craft::launchpad{
         clock: &Clock,
         ctx: &mut TxContext
     ){
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase == PHASE_CLOSED, EINVALID_PHASE);
+        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase == PHASE_CLOSED, EInvalidPhase);
 
         // Mint liquidity tokens
         let liquidity_amount = launchpad.params.liquidity_tokens;
@@ -335,9 +335,9 @@ module bond_craft::launchpad{
         launchpad: &mut Launchpad,
         ctx: &mut TxContext
     ) {
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
-        assert!(launchpad.vesting_start_epoch > 0, EVESTING_NOT_READY);
+        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase >= PHASE_CLOSED, EInvalidPhase);
+        assert!(launchpad.vesting_start_epoch > 0, EVestingNotReady);
 
         let creator_amount = launchpad.params.creator_tokens;
         let creator_coins = coin::mint(&mut launchpad.treasury, creator_amount, ctx);
@@ -360,8 +360,8 @@ module bond_craft::launchpad{
         launchpad: &mut Launchpad,
         ctx: &mut TxContext
     ) {
-        assert!(launchpad.platform_admin == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
+        assert!(launchpad.platform_admin == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase >= PHASE_CLOSED, EInvalidPhase);
 
         let platform_amount = launchpad.params.platform_tokens;
         let platform_coins = coin::mint(&mut launchpad.treasury, platform_amount, ctx);
@@ -387,9 +387,9 @@ module bond_craft::launchpad{
         amount: u64,
         ctx: &mut TxContext
     ) {
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase >= PHASE_CLOSED, EINVALID_PHASE);
-        assert!(balance::value(&launchpad.funding_balance) >= amount, EINSUFFICIENT_TOKENS);
+        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase >= PHASE_CLOSED, EInvalidPhase);
+        assert!(balance::value(&launchpad.funding_balance) >= amount, EInsufficientTokens);
 
         let funding_coins = coin::take(&mut launchpad.funding_balance, amount, ctx);
         transfer::public_transfer(funding_coins, launchpad.creator);
@@ -497,13 +497,13 @@ module bond_craft::launchpad{
         // Validate inputs
         assert!(
         funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-        EINVALID_ALLOCATION
+        EInvalidAllocation
         );
-        assert!(&name != vector::empty<u8>(), EINVALID_NAME);
-        assert!(&symbol != vector::empty<u8>(), EINVALID_SYMBOL);
-        assert!(decimals >= 6, EINVALID_DECIMALS);
-        assert!(funding_goal > 0, EINVALID_FUNDING_GOAL);
-        assert!(total_supply > 0, EINVALID_TOTAL_SUPPLY);
+        assert!(&name != vector::empty<u8>(), EInvalidName);
+        assert!(&symbol != vector::empty<u8>(), EInvalidSymbol);
+        assert!(decimals >= 6, EInvalidDecimals);
+        assert!(funding_goal > 0, EInvalidFundingGoal);
+        assert!(total_supply > 0, EInvalidTotalSupply);
 
         // Mock TreasuryCap using test-only function
         let treasury = coin::create_treasury_cap_for_testing<LaunchpadWitness>(ctx);
@@ -553,8 +553,8 @@ module bond_craft::launchpad{
         launchpad: &mut Launchpad,
         ctx: &mut TxContext
     ) {
-        assert!(launchpad.creator == tx_context::sender(ctx), EUNAUTHORIZED);
-        assert!(launchpad.state.phase == PHASE_CLOSED, EINVALID_PHASE);
+        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
+        assert!(launchpad.state.phase == PHASE_CLOSED, EInvalidPhase);
 
         // Simulate minting liquidity tokens
         let liquidity_amount = launchpad.params.liquidity_tokens;

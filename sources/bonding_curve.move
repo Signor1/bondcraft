@@ -1,8 +1,8 @@
 module bond_craft::bonding_curve {
     
     // Constants for error codes
-    const EDIVISION_BY_ZERO: u64 = 1000;
-    const EOVERFLOW: u64 = 1001;
+    const EDivisionByZero: u64 = 1000;
+    const EOverflow: u64 = 1001;
 
     // Scaling factor to handle precision in calculations
     const SCALING_FACTOR: u64 = 1_000_000_000; // 10^9 for precision
@@ -15,7 +15,7 @@ module bond_craft::bonding_curve {
         max_tokens: u64,
         token_decimals: u8
         ): u64 {
-        assert!(max_tokens != 0, EDIVISION_BY_ZERO);
+        assert!(max_tokens != 0, EDivisionByZero);
 
         // Convert to base units using u8 exponents
         let funding_goal_base = (funding_goal as u128) * (10u128).pow(funding_decimals);
@@ -24,11 +24,11 @@ module bond_craft::bonding_curve {
         let numerator = 2u128 * funding_goal_base * (SCALING_FACTOR as u128);
         let denominator = max_tokens_base * max_tokens_base;
 
-        assert!(denominator != 0, EDIVISION_BY_ZERO);
+        assert!(denominator != 0, EDivisionByZero);
         let k = numerator / denominator;
 
         // Use literal for u64 max value
-        assert!(k <= 18446744073709551615u128, EOVERFLOW);
+        assert!(k <= 18446744073709551615u128, EOverflow);
 
         (k as u64)
     }
@@ -45,7 +45,7 @@ module bond_craft::bonding_curve {
         let price = ((k as u128) * tokens_sold_base) / 1_000_000_000u128;
         
         // Use literal instead of u64::MAX
-        assert!(price <= 18446744073709551615u128, EOVERFLOW);
+        assert!(price <= 18446744073709551615u128, EOverflow);
 
         (price as u64)
     }
