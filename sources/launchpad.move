@@ -119,7 +119,7 @@ module bond_craft::launchpad{
         epoch: u64,
     }
 
-    public fun create_witness(_: &TxContext): LaunchpadWitness {
+    public fun create_witness(_: &mut TxContext): LaunchpadWitness {
         LaunchpadWitness {}
     }
 
