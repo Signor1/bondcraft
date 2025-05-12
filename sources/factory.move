@@ -4,11 +4,11 @@ module bond_craft::factory{
     use sui::event;
 
     // Error codes
-    const ENOT_FOUND: u64 = 0;
-    const EINVALID_SUPPLY: u64 = 1;
-    const EINVALID_NAME: u64 = 2;
-    const EINVALID_SYMBOL: u64 = 3;
-    const EINVALID_DECIMALS: u64 = 4;
+    const ENotFound: u64 = 0;
+    const EInvalidSupply: u64 = 1;
+    const EInvalidName: u64 = 2;
+    const EInvalidSymbol: u64 = 3;
+    const EInvalidDecimals: u64 = 4;
 
     public struct LaunchpadFactory has key {
         id: UID,
@@ -72,11 +72,11 @@ module bond_craft::factory{
     ) {
         assert!(
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-            EINVALID_SUPPLY
+            EInvalidSupply
         );
-        assert!(&name != vector::empty<u8>(), EINVALID_NAME);
-        assert!(&symbol != vector::empty<u8>(), EINVALID_SYMBOL);
-        assert!(decimals >= 6, EINVALID_DECIMALS);
+        assert!(&name != vector::empty<u8>(), EInvalidName);
+        assert!(&symbol != vector::empty<u8>(), EInvalidSymbol);
+        assert!(decimals >= 6, EInvalidDecimals);
         
         let creator = tx_context::sender(ctx);
         let platform_admin = creator;
@@ -147,7 +147,7 @@ module bond_craft::factory{
         factory: &LaunchpadFactory,
         creator: address
     ): &vector<ID> {
-        assert!(table::contains(&factory.launchpads, creator), ENOT_FOUND);
+        assert!(table::contains(&factory.launchpads, creator), ENotFound);
         table::borrow(&factory.launchpads, creator)
     }
 
