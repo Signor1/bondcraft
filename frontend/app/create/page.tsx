@@ -10,7 +10,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { HelpCircle, Upload, Check, AlertTriangle } from "lucide-react"
+import { HelpCircle, Check, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     Dialog,
@@ -177,12 +177,7 @@ export default function CreatePage() {
                                                 )}
                                             />
 
-                                            <div className="flex items-center justify-center gap-4 my-4">
-                                                <div className="w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/30 transition-colors">
-                                                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                                                    <span className="text-xs text-muted-foreground">Upload Logo (Optional)</span>
-                                                </div>
-                                            </div>
+
                                         </div>
                                     </TabsContent>
 

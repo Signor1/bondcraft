@@ -1,0 +1,5 @@
+export const PACKAGE_ID =
+  "0xe9e4c5d35c9cf778a7c58cb581660e6e149ad6565f3787fab8a013b37552bbf9";
+
+export const FACTORY_ID =
+  "0x7a41c9c1101a1b06dfc396b4ecb6312cba2776b6ac0b316494951c95a0f5fd43";
