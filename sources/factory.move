@@ -36,7 +36,7 @@ module bond_craft::factory{
         epoch: u64,
     }
 
-    public fun create_factory(ctx: &mut TxContext){
+    fun init(ctx: &mut TxContext){
         let sender = tx_context::sender(ctx);
 
         let factory = LaunchpadFactory {
@@ -157,5 +157,26 @@ module bond_craft::factory{
 
     public fun get_launchpad_count(factory: &LaunchpadFactory): u64{
         factory.launchpad_count
+    }
+
+    #[test_only]
+        public fun create_factory(ctx: &mut TxContext){
+        let sender = tx_context::sender(ctx);
+
+        let factory = LaunchpadFactory {
+            id: object::new(ctx),
+            launchpad_count: 0,
+            launchpads: table::new(ctx),
+            all_launchpads: vector::empty<ID>(),
+        };
+        let factory_id = object::uid_to_address(&factory.id);
+        transfer::transfer(factory, sender);
+
+        // Emit event
+        event::emit(FactoryCreatedEvent {
+            sender,
+            factory_id,
+            epoch: tx_context::epoch(ctx),
+        });
     }
 }
