@@ -46,7 +46,7 @@ module bond_craft::factory{
             all_launchpads: vector::empty<ID>(),
         };
         let factory_id = object::uid_to_address(&factory.id);
-        transfer::transfer(factory, sender);
+        transfer::share_object(factory);
 
         // Emit event
         event::emit(FactoryCreatedEvent {
