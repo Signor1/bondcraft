@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,38 +10,31 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { HelpCircle, Check, AlertTriangle } from "lucide-react"
+import { HelpCircle, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import useCreateLaunchpad from "@/hooks/useCreateLaunchpad";
 
 
-const formSchema = z.object({
-    tokenName: z.string().min(1, { message: "Token name is required" }),
-    tokenSymbol: z.string().min(1, { message: "Token symbol is required" }),
-    decimals: z
-        .number()
-        .min(6, { message: "Decimals must be at least 6" })
-        .max(18, { message: "Decimals cannot exceed 18" }),
+export const formSchema = z.object({
+    tokenName: z.string().min(1, { message: "Token name is required" }).max(32, { message: "Token name must be 32 characters or less" }),
+    tokenSymbol: z.string().min(1, { message: "Token symbol is required" }).max(32, { message: "Token symbol must be 32 characters or less" }),
+    decimals: z.number().min(6, { message: "Decimals must be at least 6" }).max(18, { message: "Decimals cannot exceed 18" }),
     totalSupply: z.number().min(1000000, { message: "Total supply must be at least 1,000,000" }),
-    fundingTokens: z.number().min(1, { message: "Funding tokens must be greater than 0" }),
-    creatorTokens: z.number().min(1, { message: "Creator tokens must be greater than 0" }),
-    liquidityTokens: z.number().min(1, { message: "Liquidity tokens must be greater than 0" }),
-    platformTokens: z.number().min(1, { message: "Platform tokens must be greater than 0" }),
-    fundingGoal: z.number().min(100, { message: "Funding goal must be at least 100 USDC" }),
-    platformAdmin: z.string().optional(),
+    fundingTokens: z.number().min(1000, { message: "Funding tokens must be at least 1,000" }),
+    creatorTokens: z.number().min(1000, { message: "Creator tokens must be at least 1,000" }),
+    liquidityTokens: z.number().min(1000, { message: "Liquidity tokens must be at least 1,000 for Cetus pool" }),
+    platformTokens: z.number().min(1000, { message: "Platform tokens must be at least 1,000" }),
+    fundingGoal: z.number().min(1000, { message: "Funding goal must be at least 1,000 USDC" }).max(1000000000, { message: "Funding goal cannot exceed 1,000,000,000 USDC" }),
 })
 
 export default function CreatePage() {
-    const [successDialog, setSuccessDialog] = useState(false)
-    const [previewK, setPreviewK] = useState(0.00000001)
-    const [previewPrice, setPreviewPrice] = useState(0.000001)
+    const [previewK, setPreviewK] = useState(0.00000001);
+    const [previewPrice, setPreviewPrice] = useState(0.000001);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPriceValid, setIsPriceValid] = useState(true);
+    const [maxFundingTokens, setMaxFundingTokens] = useState(0);
+
+    const createLaunchpad = useCreateLaunchpad();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -50,55 +43,59 @@ export default function CreatePage() {
             tokenSymbol: "",
             decimals: 9,
             totalSupply: 10000000,
-            fundingTokens: 5000000,
-            creatorTokens: 2000000,
+            fundingTokens: 1400000,
+            creatorTokens: 2600000,
             liquidityTokens: 2000000,
-            platformTokens: 1000000,
-            fundingGoal: 1000,
-            platformAdmin: "",
+            platformTokens: 4000000,
+            fundingGoal: 1000000000,
         },
     })
 
-    const watchTotalSupply = form.watch("totalSupply")
-    const watchFundingTokens = form.watch("fundingTokens")
-    const watchCreatorTokens = form.watch("creatorTokens")
-    const watchLiquidityTokens = form.watch("liquidityTokens")
-    const watchPlatformTokens = form.watch("platformTokens")
-    const watchFundingGoal = form.watch("fundingGoal")
+    const watchTotalSupply = form.watch("totalSupply");
+    const watchFundingTokens = form.watch("fundingTokens");
+    const watchCreatorTokens = form.watch("creatorTokens");
+    const watchLiquidityTokens = form.watch("liquidityTokens");
+    const watchPlatformTokens = form.watch("platformTokens");
+    const watchFundingGoal = form.watch("fundingGoal");
 
-    // Calculate sum of allocations
-    const totalAllocations = watchFundingTokens + watchCreatorTokens + watchLiquidityTokens + watchPlatformTokens
+    const totalAllocations =
+        watchFundingTokens + watchCreatorTokens + watchLiquidityTokens + watchPlatformTokens;
 
-    // Calculate k and initial price
     const calculateK = (fundingGoal: number, fundingTokens: number) => {
-        return (fundingGoal * 1e9) / (fundingTokens * fundingTokens)
-    }
+        return (2 * fundingGoal * 1e9) / (fundingTokens * fundingTokens);
+    };
 
     const calculateInitialPrice = (k: number) => {
-        return k * 0.000001 // Very small number of tokens sold initially
-    }
+        return (k * 1) / 1e9;
+    };
 
-    // Update preview values when form changes
-    const updatePreview = () => {
+    const calculateMaxFundingTokens = (fundingGoal: number) => {
+        return Math.floor(Math.sqrt((2 * fundingGoal) / 0.001));
+    };
+
+    useEffect(() => {
         if (watchFundingGoal > 0 && watchFundingTokens > 0) {
-            const k = calculateK(watchFundingGoal, watchFundingTokens)
-            const initialPrice = calculateInitialPrice(k)
-            setPreviewK(k)
-            setPreviewPrice(initialPrice)
+            const k = calculateK(watchFundingGoal, watchFundingTokens);
+            const initialPrice = calculateInitialPrice(k);
+            const maxTokens = calculateMaxFundingTokens(watchFundingGoal);
+            setPreviewK(k);
+            setPreviewPrice(initialPrice);
+            setMaxFundingTokens(maxTokens);
+            setIsPriceValid(initialPrice >= 0.001);
+        } else {
+            setIsPriceValid(false);
+            setMaxFundingTokens(0);
         }
-    }
 
-    // Update preview when relevant values change
-    useState(() => {
-        updatePreview()
-    })
+    }, [watchFundingGoal, watchFundingTokens, watchTotalSupply, form]);
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        // This would call the Sui blockchain in a real implementation
-        console.log(values)
-
-        // Show success dialog
-        setSuccessDialog(true)
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        setIsSubmitting(true);
+        try {
+            await createLaunchpad(values);
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -176,8 +173,6 @@ export default function CreatePage() {
                                                     </FormItem>
                                                 )}
                                             />
-
-
                                         </div>
                                     </TabsContent>
 
@@ -213,7 +208,10 @@ export default function CreatePage() {
                                                                     <HelpCircle className="h-3 w-3 text-muted-foreground" />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    <p className="w-60">Tokens available for public sale during the funding phase</p>
+                                                                    <p className="w-60">
+                                                                        Tokens for public sale. To achieve initial price ≥ $0.001, set ≤{" "}
+                                                                        {maxFundingTokens.toLocaleString()} tokens for current funding goal.
+                                                                    </p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
@@ -324,6 +322,15 @@ export default function CreatePage() {
                                                     </p>
                                                 </div>
                                             )}
+                                            {!isPriceValid && (
+                                                <div className="rounded-lg bg-destructive/10 p-3 text-destructive flex items-center gap-2">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <p className="text-sm">
+                                                        Initial price (${previewPrice.toFixed(9)}) is too low. Must be at least $0.001. Increase funding goal
+                                                        or reduce funding tokens to ≤ {maxFundingTokens.toLocaleString()}.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </TabsContent>
 
@@ -340,30 +347,10 @@ export default function CreatePage() {
                                                                 type="number"
                                                                 min={100}
                                                                 {...field}
-                                                                onChange={(e) => {
-                                                                    field.onChange(Number.parseInt(e.target.value))
-                                                                    updatePreview()
-                                                                }}
+                                                                onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                                                             />
                                                         </FormControl>
                                                         <FormDescription>The amount of USDC you want to raise</FormDescription>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={form.control}
-                                                name="platformAdmin"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Platform Admin (Optional)</FormLabel>
-                                                        <FormControl>
-                                                            <Input placeholder="0x..." {...field} value={field.value || ""} />
-                                                        </FormControl>
-                                                        <FormDescription>
-                                                            The address that can claim platform tokens (defaults to creator)
-                                                        </FormDescription>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -372,8 +359,12 @@ export default function CreatePage() {
                                     </TabsContent>
 
                                     <div className="flex justify-end">
-                                        <Button type="submit" size="lg" disabled={totalAllocations !== watchTotalSupply}>
-                                            Create Launchpad
+                                        <Button
+                                            type="submit"
+                                            size="lg"
+                                            disabled={totalAllocations !== watchTotalSupply || !isPriceValid || isSubmitting}
+                                        >
+                                            {isSubmitting ? "Creating..." : "Create Launchpad"}
                                         </Button>
                                     </div>
                                 </form>
@@ -418,6 +409,10 @@ export default function CreatePage() {
                                         <span className="text-sm text-muted-foreground">Funding Goal</span>
                                         <span>{form.watch("fundingGoal")?.toLocaleString() || "0"} USDC</span>
                                     </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-muted-foreground">Max Funding Tokens</span>
+                                        <span>{maxFundingTokens.toLocaleString()} tokens</span>
+                                    </div>
                                 </div>
 
                                 <div className="rounded-lg bg-muted/20 p-3 text-sm">
@@ -425,7 +420,7 @@ export default function CreatePage() {
                                     <p className="text-muted-foreground">
                                         The price increases as more tokens are sold, following:
                                         <br />
-                                        price = k × tokens_sold ÷ 10^9
+                                        price = k * tokens_sold ÷ 10^9
                                     </p>
                                 </div>
                             </div>
@@ -462,39 +457,6 @@ export default function CreatePage() {
                     </Card>
                 </div>
             </div>
-
-            {/* Success dialog */}
-            <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Check className="h-5 w-5 text-green-500" />
-                            Launchpad Created Successfully
-                        </DialogTitle>
-                        <DialogDescription>Your launchpad has been created on the Sui blockchain</DialogDescription>
-                    </DialogHeader>
-                    <div className="bg-muted/20 p-4 rounded-lg">
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">Launchpad ID</span>
-                                <span className="font-mono text-xs">0x123abc456def789ghi</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">Transaction Hash</span>
-                                <span className="font-mono text-xs">0x789ghi123abc456def</span>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSuccessDialog(false)}>
-                            Close
-                        </Button>
-                        <Button asChild>
-                            <a href="/launchpads/new-id">View Launchpad</a>
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }
