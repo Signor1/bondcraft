@@ -1,11 +1,9 @@
 import { bcs } from '@mysten/bcs';
 import init, { deserialize, version, update_constants, update_identifiers, get_constants } from '@mysten/move-bytecode-template';
-import fromHEX from '@mysten/move-bytecode-template';
-import url from '@mysten/move-bytecode-template/move_bytecode_template_bg.wasm';
-import bytecodeUrl from '../constant/coin_template.mv?url';
-import json_bytecode from '../constant/coin_template.json';
+import url from '@mysten/move-bytecode-template/move_bytecode_template_bg.wasm?url';
+import bytecodeUrl from './coin_template.mv?url';
 
-// let bytecodeUrl = fromHEX(bytecode);
+// let bytecodeUrl = fromHEX('../constant/coin_template.mv?url');
 
 const fetchBytecode = async (): Promise<Uint8Array> => {
     try {
@@ -41,8 +39,8 @@ export const usePublishToken = async (
         version(); // Optional: version check
 
         let updatedBytes = update_identifiers(initialBytes, {
-            COIN_TEMPLATE: symbol,
-            coin_template: 'bondcraft',
+            COIN_TEMPLATE: symbol.toUpperCase(),
+            coin_template: symbol.toLowerCase(),
         });
 
         updatedBytes = update_constants(
