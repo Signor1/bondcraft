@@ -28,7 +28,7 @@ module bond_craft::launchpad{
     const PHASE_CLOSED: u8 = 1;
     const PHASE_LIQUIDITY_BOOTSTRAPPED: u8 = 2;
 
-    const MAX_TOKENS_PER_TX: u64 = 1_000_000_000_000_000_000; // 1M tokens, 9 decimals
+    const MAX_TOKENS_PER_TX: u64 = 1_000_000; // 1M tokens
 
 
     public struct Launchpad<phantom T> has key, store{
@@ -195,7 +195,7 @@ module bond_craft::launchpad{
             launchpad.state.tokens_sold + amount <= launchpad.params.funding_tokens,
             EInsufficientTokens
         );
-        assert!(amount <= MAX_TOKENS_PER_TX, EExcessivePurchase);
+        assert!(amount <= MAX_TOKENS_PER_TX * (launchpad.params.decimals as u64), EExcessivePurchase);
 
         // Calculate required payment based on bonding curve
         let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals, launchpad.params.k);
