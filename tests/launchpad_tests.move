@@ -2,7 +2,7 @@ module bond_craft::launchpad_tests {
     use sui::test_scenario::{Self, Scenario};
     use sui::coin::{Self, Coin};
 
-    use bond_craft::launchpad::{Self, Launchpad, LaunchpadWitness};
+    use bond_craft::launchpad::{Self, Launchpad};
     use usdc::usdc::USDC;
 
     // Helper function to set up a scenario

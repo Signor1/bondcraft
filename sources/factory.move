@@ -1,14 +1,12 @@
 module bond_craft::factory{
     use sui::table::{Self, Table};
     use bond_craft::launchpad;
+    use sui::coin::{TreasuryCap, CoinMetadata};
     use sui::event;
 
     // Error codes
     const ENotFound: u64 = 0;
     const EInvalidSupply: u64 = 1;
-    const EInvalidName: u64 = 2;
-    const EInvalidSymbol: u64 = 3;
-    const EInvalidDecimals: u64 = 4;
 
     public struct LaunchpadFactory has key {
         id: UID,
@@ -28,9 +26,6 @@ module bond_craft::factory{
         sender: address,
         factory_id: address,
         launchpad_id: address,
-        symbol: vector<u8>,
-        name: vector<u8>,
-        decimals: u8,
         total_supply: u64,
         funding_goal: u64,
         epoch: u64,
@@ -57,11 +52,10 @@ module bond_craft::factory{
     }
 
     #[allow(lint(self_transfer))]
-    public fun create_launchpad(
+    public fun create_launchpad<T>(
         factory: &mut LaunchpadFactory,
-        symbol: vector<u8>,
-        name: vector<u8>,
-        decimals: u8,
+        treasury_cap: TreasuryCap<T>,
+        metadata: CoinMetadata<T>,
         total_supply: u64,
         funding_tokens: u64,
         creator_tokens: u64,
@@ -74,18 +68,14 @@ module bond_craft::factory{
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
             EInvalidSupply
         );
-        assert!(&name != vector::empty<u8>(), EInvalidName);
-        assert!(&symbol != vector::empty<u8>(), EInvalidSymbol);
-        assert!(decimals >= 6, EInvalidDecimals);
         
         let creator = tx_context::sender(ctx);
         let platform_admin = creator;
 
         let launchpad = launchpad::create(
             ctx,
-            symbol,
-            name,
-            decimals,
+            treasury_cap,
+            metadata,
             total_supply,
             funding_tokens,
             creator_tokens,
@@ -109,9 +99,6 @@ module bond_craft::factory{
             sender: creator,
             factory_id,
             launchpad_id: object::id_to_address(&launchpad_id),
-            symbol,
-            name,
-            decimals,
             total_supply,
             funding_goal,
             epoch: tx_context::epoch(ctx),
