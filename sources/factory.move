@@ -7,6 +7,9 @@ module bond_craft::factory{
     // Error codes
     const ENotFound: u64 = 0;
     const EInvalidSupply: u64 = 1;
+    const EInvalidName: u64 = 2;
+    const EInvalidSymbol: u64 = 3;
+    const EInvalidDecimals: u64 = 4;
 
     public struct LaunchpadFactory has key {
         id: UID,
@@ -68,12 +71,15 @@ module bond_craft::factory{
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
             EInvalidSupply
         );
+
+        assert!(!metadata.get_name().is_empty(), EInvalidName);
+        assert!(!metadata.get_name().is_empty(), EInvalidSymbol);
+        assert!(metadata.get_decimals() > 5, EInvalidDecimals);
         
         let creator = tx_context::sender(ctx);
         let platform_admin = creator;
 
         let launchpad = launchpad::create(
-            ctx,
             treasury_cap,
             metadata,
             total_supply,
@@ -82,7 +88,8 @@ module bond_craft::factory{
             liquidity_tokens,
             platform_tokens,
             funding_goal,
-            platform_admin
+            platform_admin,
+            ctx
         );
         let launchpad_id = object::id(&launchpad);
         let factory_id = object::uid_to_address(&factory.id);
@@ -105,7 +112,7 @@ module bond_craft::factory{
         });
     }
 
-     // Helper function to check if a creator has launchpads
+    // Helper function to check if a creator has launchpads
     public fun has_launchpads(factory: &LaunchpadFactory, creator: address): bool {
         table::contains(&factory.launchpads, creator)
     }

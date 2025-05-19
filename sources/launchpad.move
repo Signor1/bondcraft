@@ -116,7 +116,6 @@ module bond_craft::launchpad{
 
     /// Create a new Launchpad instance with the specified parameters.
     public fun create<T>(
-        ctx: &mut TxContext,
         treasury: TreasuryCap<T>,
         metadata: CoinMetadata<T>,
         total_supply: u64,
@@ -125,7 +124,8 @@ module bond_craft::launchpad{
         liquidity_tokens: u64,
         platform_tokens: u64,
         funding_goal: u64,
-        platform_admin: address
+        platform_admin: address,
+        ctx: &mut TxContext
     ): Launchpad<T> {
         assert!(
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
