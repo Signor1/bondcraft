@@ -13,7 +13,6 @@ module bond_craft::coin_template {
             witness, DECIMALS, SYMBOL, NAME, DESCRIPTION, option::none(), ctx
         );
         transfer::public_freeze_object(metadata);
-        transfer::public_transfer(metadata, tx_context::sender(ctx));
         transfer::public_transfer(treasury, tx_context::sender(ctx));
     }
 }
