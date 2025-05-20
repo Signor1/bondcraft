@@ -14,6 +14,7 @@ import * as z from "zod";
 import { formSchema } from "@/app/create/page";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { normalizeSuiObjectId } from "@mysten/sui/utils";
 
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;
@@ -33,12 +34,41 @@ const useCreateLaunchpad = () => {
       }),
     []
   );
+
+  // Helper function to wait for transaction to be confirmed
+  const waitForTransaction = useCallback(
+    async (digest: string) => {
+      try {
+        // Wait for transaction to be processed
+        await suiClient.waitForTransaction({ digest });
+
+        // Fetch transaction details with all relevant data
+        return await suiClient.getTransactionBlock({
+          digest,
+          options: {
+            showEffects: true,
+            showObjectChanges: true,
+            showInput: true,
+            showEvents: true,
+          },
+        });
+      } catch (error) {
+        console.error("Error waiting for transaction:", error);
+        throw error;
+      }
+    },
+    [suiClient]
+  );
+
   return useCallback(
     async (values: FormValues) => {
       if (!account) {
         toast.error("Please connect your wallet");
         return;
       }
+
+      // Loading toast for user feedback
+      const loadingToast = toast.loading("Creating your token...");
 
       try {
         // First, load the WASM module and bytecode template
@@ -50,6 +80,9 @@ const useCreateLaunchpad = () => {
             import.meta.url
           ).toString()
         );
+
+        // Update loading message
+        toast.loading("Fetching coin template...", { id: loadingToast });
 
         // Fetch the coin template bytecode
         const coinTemplateResponse = await fetch("/coin_template.mv");
@@ -64,6 +97,14 @@ const useCreateLaunchpad = () => {
 
         // Helper function to encode text as UTF-8 bytes
         const encodeText = (text: string) => new TextEncoder().encode(text);
+
+        // Get module name in lowercase - ensure it's converted to 3 characters for better compatibility
+        const moduleNameLower = values.tokenSymbol
+          .toLowerCase()
+          .substring(0, 3);
+
+        // Update loading message
+        toast.loading("Customizing your token...", { id: loadingToast });
 
         // Update module name identifiers
         let updatedBytecode = wasmModule.update_identifiers(initialBytecode, {
@@ -122,13 +163,19 @@ const useCreateLaunchpad = () => {
         // Convert to array format that Transaction.publish() expects (Array<number>)
         const moduleBytes = Array.from(updatedBytecode);
 
+        // Update loading message
+        toast.loading("Publishing coin module...", { id: loadingToast });
+
         // Build transaction
         const txb = new Transaction();
 
         // Publish the updated coin module
         const [upgradeCap] = txb.publish({
           modules: [moduleBytes],
-          dependencies: [],
+          dependencies: [
+            normalizeSuiObjectId("0x1"),
+            normalizeSuiObjectId("0x2"),
+          ], // Sui framework
         });
 
         // Make sure to transfer the upgrade cap to the sender
@@ -145,54 +192,45 @@ const useCreateLaunchpad = () => {
             chain: "sui:testnet",
           });
 
-        console.log("Publish transaction result:", publishResult);
-
-        // Fetch the full transaction block to get the complete effects object
-        const txBlock = await suiClient.getTransactionBlock({
-          digest: publishResult.digest,
-          options: {
-            showEffects: true,
-            showObjectChanges: true,
-          },
+        // Wait for transaction to be confirmed and get detailed results
+        toast.loading("Waiting for transaction confirmation...", {
+          id: loadingToast,
         });
+        const txBlock = await waitForTransaction(publishResult.digest);
 
-        console.log("Full transaction block:", txBlock);
-
-        if (
-          !txBlock.effects?.created ||
-          !Array.isArray(txBlock.effects.created)
-        ) {
-          throw new Error(
-            "Transaction successful but created objects not found in transaction effects"
-          );
-        }
-
-        // Define the coin type for reference (not directly used but kept for clarity)
-        const coinType = `${values.tokenSymbol.toLowerCase()}::${values.tokenSymbol.toLowerCase()}::${values.tokenSymbol.toUpperCase()}`;
-
-        console.log("Coin type:", coinType);
-
-        // Extract package ID from the transaction result
-        const packageId = txBlock.effects.created.find(
-          (obj: any) => obj.owner === "Immutable"
-        )?.reference.objectId;
-
-        if (!packageId) {
-          throw new Error(
-            "Failed to extract package ID from transaction result"
-          );
-        }
-
-        // Extract TreasuryCap and CoinMetadata from the transaction result
-        const treasuryCapObj = txBlock.effects.created.find(
-          (obj: any) =>
-            obj.owner.AddressOwner === account.address &&
-            obj.type.includes("TreasuryCap")
+        // Find the published package ID from objectChanges (more reliable)
+        const publishedPackage = txBlock.objectChanges?.find(
+          (change) => change.type === "published"
         );
 
-        const metadataObj = txBlock.effects.created.find(
-          (obj: any) =>
-            obj.owner === "Immutable" && obj.type.includes("CoinMetadata")
+        if (!publishedPackage || publishedPackage.type !== "published") {
+          throw new Error("Could not find published package in transaction");
+        }
+
+        const packageId = publishedPackage.packageId;
+
+        // Extract actual module name from the published package
+        let actualModuleName = moduleNameLower;
+        if (publishedPackage.modules && publishedPackage.modules.length > 0) {
+          actualModuleName = publishedPackage.modules[0];
+        }
+
+        // The correct coin type path with the actual module name
+        const coinType = `${packageId}::${actualModuleName}::${values.tokenSymbol.toUpperCase()}`;
+
+        // Find TreasuryCap and CoinMetadata directly from objectChanges
+        const treasuryCapObj = txBlock.objectChanges?.find(
+          (change) =>
+            change.type === "created" &&
+            change.objectType.includes("TreasuryCap") &&
+            change.objectType.includes(packageId)
+        );
+
+        const metadataObj = txBlock.objectChanges?.find(
+          (change) =>
+            change.type === "created" &&
+            change.objectType.includes("CoinMetadata") &&
+            change.objectType.includes(packageId)
         );
 
         if (!treasuryCapObj || !metadataObj) {
@@ -201,8 +239,20 @@ const useCreateLaunchpad = () => {
           );
         }
 
-        const treasuryCapId = treasuryCapObj.reference.objectId;
-        const metadataId = metadataObj.reference.objectId;
+        if (
+          treasuryCapObj.type !== "created" ||
+          metadataObj.type !== "created"
+        ) {
+          throw new Error(
+            "Expected created object types for TreasuryCap and CoinMetadata"
+          );
+        }
+
+        const treasuryCapId = treasuryCapObj.objectId;
+        const metadataId = metadataObj.objectId;
+
+        // Update loading message
+        toast.loading("Creating launchpad...", { id: loadingToast });
 
         // Now create a second transaction to create the launchpad
         const launchpadTxb = new Transaction();
@@ -221,9 +271,7 @@ const useCreateLaunchpad = () => {
             launchpadTxb.pure.u64(values.platformTokens),
             launchpadTxb.pure.u64(values.fundingGoal),
           ],
-          typeArguments: [
-            `${packageId}::${values.tokenSymbol.toLowerCase()}::${values.tokenSymbol.toUpperCase()}`,
-          ],
+          typeArguments: [coinType],
         });
 
         launchpadTxb.setGasBudget(1000000000); // 1 SUI
@@ -236,10 +284,18 @@ const useCreateLaunchpad = () => {
             chain: "sui:testnet",
           });
 
-        console.log("Launchpad creation result:", launchpadResult);
+        // Wait for launchpad transaction to be confirmed
+        toast.loading("Finalizing your launchpad...", { id: loadingToast });
+        const launchpadTxBlock = await waitForTransaction(
+          launchpadResult.digest
+        );
 
+        console.log("Launchpad creation completed:", launchpadTxBlock);
+
+        // Dismiss loading toast and show success
+        toast.dismiss(loadingToast);
         toast.success(
-          `Launchpad created successfully! Digest: ${launchpadResult.digest}`,
+          `Launchpad created successfully! Token: ${values.tokenSymbol}`,
           {
             position: "top-right",
           }
@@ -248,6 +304,11 @@ const useCreateLaunchpad = () => {
         // Invalidate launchpad queries
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
       } catch (error) {
+        // Dismiss loading toast
+        toast.dismiss(loadingToast);
+
+        console.error("Error creating launchpad:", error);
+
         const errorMessage =
           error instanceof Error
             ? error.message.includes("EInvalidSupply")
@@ -265,7 +326,7 @@ const useCreateLaunchpad = () => {
         });
       }
     },
-    [account, signAndExecuteTransaction, queryClient, suiClient]
+    [account, signAndExecuteTransaction, queryClient, waitForTransaction]
   );
 };
 

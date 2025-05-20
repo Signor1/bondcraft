@@ -455,7 +455,7 @@ export default function FaqsAndSupport() {
                                 </a>
 
                                 <a
-                                    href="https://github.com"
+                                    href="https://github.com/Signor1/bondcraft"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/50 transition-colors"

@@ -58,7 +58,7 @@ module bond_craft::factory{
     public fun create_launchpad<T>(
         factory: &mut LaunchpadFactory,
         treasury_cap: TreasuryCap<T>,
-        metadata: CoinMetadata<T>,
+        metadata: &CoinMetadata<T>,
         total_supply: u64,
         funding_tokens: u64,
         creator_tokens: u64,

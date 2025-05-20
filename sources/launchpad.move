@@ -34,7 +34,7 @@ module bond_craft::launchpad{
     public struct Launchpad<phantom T> has key, store{
         id: UID,
         treasury: TreasuryCap<T>,
-        metadata: CoinMetadata<T>,
+        metadata_id: ID,
         params: LaunchParams,
         state: LaunchState,
         creator: address,
@@ -117,7 +117,7 @@ module bond_craft::launchpad{
     /// Create a new Launchpad instance with the specified parameters.
     public fun create<T>(
         treasury: TreasuryCap<T>,
-        metadata: CoinMetadata<T>,
+        metadata: &CoinMetadata<T>,
         total_supply: u64,
         funding_tokens: u64,
         creator_tokens: u64,
@@ -134,7 +134,7 @@ module bond_craft::launchpad{
         assert!(funding_goal > 0, EInvalidFundingGoal);
         assert!(total_supply > 0, EInvalidTotalSupply);
 
-        let decimals = coin::get_decimals<T>(&metadata);
+        let decimals = coin::get_decimals<T>(metadata);
 
         let k = bonding_curve::calculate_k(
             funding_goal, 
@@ -143,10 +143,11 @@ module bond_craft::launchpad{
             decimals, // Project token decimals from function params
             );
 
+
         let launchpad = Launchpad {
             id: object::new(ctx),
             treasury,
-            metadata,
+            metadata_id: object::id(metadata),
             params: LaunchParams {
                 total_supply,
                 funding_tokens,
@@ -454,7 +455,7 @@ module bond_craft::launchpad{
     #[test_only]
     public fun create_test<T>(
         ctx: &mut TxContext,
-        metadata: CoinMetadata<T>,
+        metadata: &CoinMetadata<T>,
         decimals: u8,
         total_supply: u64,
         funding_tokens: u64,
@@ -481,7 +482,7 @@ module bond_craft::launchpad{
         let launchpad = Launchpad<T> {
             id: object::new(ctx),
             treasury,
-            metadata,
+            metadata_id: object::id(metadata),
             params: LaunchParams {
                 total_supply,
                 funding_tokens,
