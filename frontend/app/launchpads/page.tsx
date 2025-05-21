@@ -1,3 +1,5 @@
+'use client'
+
 import { Suspense } from "react"
 import Link from "next/link"
 import LaunchpadCard from "@/components/launchpad-card"
@@ -6,9 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, AlertTriangle } from "lucide-react"
-import { mockLaunchpads } from "@/utils/mockTokens"
+import useGetAllLaunchpads from "@/hooks/useGetAllLaunchpads"
 
 export default function LaunchpadsPage() {
+    // Fetch all launchpads using the custom hook
+    const { launchpads, isLoading, isError } = useGetAllLaunchpads();
+
     return (
         <div className="container mx-auto py-20 md:px-8 px-4">
             <div className="mb-8 space-y-2">
@@ -74,9 +79,19 @@ export default function LaunchpadsPage() {
                     </div>
                 }
             >
-                {mockLaunchpads.length > 0 ? (
+                {isLoading ? (
+                    <div className="flex h-32 items-center justify-center">
+                        <div className="text-center">Loading launchpads...</div>
+                    </div>
+                ) : isError ? (
+                    <div className="flex flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-12 text-center">
+                        <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                        <h3 className="text-lg font-semibold">Error Loading Launchpads</h3>
+                        <p className="text-sm text-muted-foreground">We couldn&apos;t load the launchpads. Please try again later.</p>
+                    </div>
+                ) : launchpads && launchpads.length > 0 ? (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {mockLaunchpads.map((launchpad) => (
+                        {launchpads.map((launchpad) => (
                             <LaunchpadCard key={launchpad.id} {...launchpad} />
                         ))}
                     </div>
@@ -92,9 +107,7 @@ export default function LaunchpadsPage() {
                 )}
             </Suspense>
 
-            <div className="mt-8 flex items-center justify-center">
-                <Button variant="outline">Load More</Button>
-            </div>
+
         </div>
     )
 }

@@ -1,14 +1,19 @@
+'use client'
+
 import React from 'react'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import LaunchpadCard from "@/components/launchpad-card"
-import { ChevronRight, BarChart, Coins, LineChart } from "lucide-react"
-import { featuredLaunchpads } from '@/utils/mockTokens'
+import { ChevronRight, BarChart, Coins, LineChart, AlertTriangle } from "lucide-react"
 import Image from 'next/image'
 import FaqsAndSupport from './faqsAndSupport'
+import useGetAllLaunchpads from '@/hooks/useGetAllLaunchpads'
 
 const LandingPage = () => {
+    // Fetch all launchpads using the custom hook
+    const { launchpads, isLoading, isError } = useGetAllLaunchpads();
+
     return (
         <React.Fragment>
             {/* Hero section */}
@@ -52,11 +57,28 @@ const LandingPage = () => {
                             </Button>
                         </Link>
                     </div>
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {featuredLaunchpads.map((launchpad) => (
-                            <LaunchpadCard key={launchpad.id} {...launchpad} />
-                        ))}
-                    </div>
+                    {isLoading ? (
+                        <div className="flex h-32 items-center justify-center">
+                            <div className="text-center">Loading launchpads...</div>
+                        </div>
+                    ) : isError ? (
+                        <div className="flex flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-12 text-center">
+                            <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                            <h3 className="text-lg font-semibold">Error Loading Launchpads</h3>
+                            <p className="text-sm text-muted-foreground">We couldn&apos;t load the launchpads. Please try again later.</p>
+                        </div>
+                    ) : launchpads && launchpads.length > 0 ? (
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {launchpads.slice(0, 3).map((launchpad) => (
+                                <LaunchpadCard key={launchpad.id} {...launchpad} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-12 text-center">
+                            <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                            <h3 className="text-lg font-semibold">No Launchpads Found</h3>
+                        </div>
+                    )}
                 </div>
             </section>
 
