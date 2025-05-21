@@ -15,6 +15,7 @@ import { formSchema } from "@/app/create/page";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { normalizeSuiObjectId } from "@mysten/sui/utils";
+import { useRouter } from "next/navigation";
 
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;
@@ -22,6 +23,8 @@ type FormValues = z.infer<typeof formSchema>;
 const useCreateLaunchpad = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
+
+  const router = useRouter();
 
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
@@ -303,6 +306,10 @@ const useCreateLaunchpad = () => {
 
         // Invalidate launchpad queries
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
+
+        queryClient.invalidateQueries({ queryKey: ["user-launchpads"] });
+
+        router.push("/my-launchpads");
       } catch (error) {
         // Dismiss loading toast
         toast.dismiss(loadingToast);
@@ -326,7 +333,13 @@ const useCreateLaunchpad = () => {
         });
       }
     },
-    [account, signAndExecuteTransaction, queryClient, waitForTransaction]
+    [
+      account,
+      signAndExecuteTransaction,
+      queryClient,
+      waitForTransaction,
+      router,
+    ]
   );
 };
 
