@@ -14,6 +14,7 @@ module bond_craft::launchpad{
 
     // Error codes
     const EInvalidAllocation: u64 = 1;
+    const EInvalidBondingCurve: u64 = 2;
     const EInvalidFundingGoal: u64 = 5;
     const EInvalidTotalSupply: u64 = 6;
     const EInsufficientPayment: u64 = 7;
@@ -136,12 +137,16 @@ module bond_craft::launchpad{
 
         let decimals = coin::get_decimals<T>(metadata);
 
+        // Calculate k with correct decimal handling
         let k = bonding_curve::calculate_k(
             funding_goal, 
             6, // USDC has 6 decimals
             funding_tokens,
-            decimals, // Project token decimals from function params
-            );
+            decimals // Project token decimals
+        );
+
+        // Validate that k is not zero
+        assert!(k > 0, EInvalidBondingCurve);
 
 
         let launchpad = Launchpad {
@@ -196,11 +201,19 @@ module bond_craft::launchpad{
             launchpad.state.tokens_sold + amount <= launchpad.params.funding_tokens,
             EInsufficientTokens
         );
-        assert!(amount <= MAX_TOKENS_PER_TX * (launchpad.params.decimals as u64), EExcessivePurchase);
+        assert!(amount <= MAX_TOKENS_PER_TX * (10u64).pow(launchpad.params.decimals), EExcessivePurchase);
 
         // Calculate required payment based on bonding curve
-        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals, launchpad.params.k);
-        let total_cost = current_price * amount;
+        // We now pass the correct token_decimals parameter
+        let tokens_sold = launchpad.state.tokens_sold;
+        let token_decimals = launchpad.params.decimals;
+        let k = launchpad.params.k;
+
+        // Instead of multiplying the current price by amount, use a more accurate cost calculation
+        // that accounts for the price increase along the curve
+        let total_cost = bonding_curve::calculate_cost(tokens_sold, amount, token_decimals, k);
+
+        // Check if payment is sufficient
         assert!(coin::value(&payment) >= total_cost, EInsufficientPayment);
 
         // Store payment in funding_balance
@@ -210,14 +223,25 @@ module bond_craft::launchpad{
         let minted = coin::mint(&mut launchpad.treasury, amount, ctx);
         transfer::public_transfer(minted, tx_context::sender(ctx));
 
+         let current_k = bonding_curve::calculate_k(
+            launchpad.params.funding_goal, 
+            6,
+            launchpad.params.funding_tokens,
+            launchpad.params.decimals
+        );
+
         // Update tokens sold
         launchpad.state.tokens_sold = launchpad.state.tokens_sold + amount;
+        launchpad.params.k = current_k;
 
         // Check if funding goal is reached
         if (balance::value(&launchpad.funding_balance) >= launchpad.params.funding_goal) {
             launchpad.state.phase = PHASE_CLOSED;
             launchpad.vesting_start_epoch = tx_context::epoch(ctx);
         };
+
+        // Calculate the current price for the event
+        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, token_decimals, k);
 
         // Emit event
         event::emit(TokensPurchasedEvent {
@@ -376,7 +400,6 @@ module bond_craft::launchpad{
         });
     }
 
-
     // =================== READ METHODS ==================
 
     /// Get the total token supply of the launchpad.
@@ -432,7 +455,7 @@ module bond_craft::launchpad{
 
     /// Get the current token price based on the bonding curve.
     public fun current_price<T>(launchpad: &Launchpad<T>): u64 {
-        bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k)
+        bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals, launchpad.params.k)
     }
 
     /// Get the amount of funding tokens collected.

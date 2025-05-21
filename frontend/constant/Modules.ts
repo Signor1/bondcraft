@@ -3,3 +3,6 @@ export const PACKAGE_ID =
 
 export const FACTORY_ID =
   "0x8a491786a313ffabfc0409d589cd07e8284316f9d156270c76077ee10e972410";
+
+export const USDC_TYPE =
+  "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC";

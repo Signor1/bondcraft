@@ -10,6 +10,7 @@ import Image from "next/image"
 import useGetLaunchpadDetails from "@/hooks/useGetLaunchpadDetails"
 import { useEffect, useState } from "react"
 import { useCurrentAccount } from "@mysten/dapp-kit"
+import useBuyToken from "@/hooks/useBuyToken"
 
 interface PageProps {
     params: {
@@ -38,6 +39,20 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
     const handleTokenAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value) || 0
         setTokenAmount(value)
+    }
+
+    const handleTokenPurchase = useBuyToken()
+
+    const handleBuyTokens = async () => {
+        console.log(launchpad?.coinType);
+        await handleTokenPurchase({
+            launchpadId: params.id,
+            tokenAmount,
+            estimatedCost,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
+        setTokenAmount(0)
     }
 
 
@@ -215,7 +230,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-sm text-muted-foreground">Vesting Start</span>
-                                            <span>{launchpad.vestingStartEpoch || "Not set"}</span>
+                                            <span>{launchpad.vestingStartEpoch || "Funding goal not met"}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -250,7 +265,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                     <Input id="cost" type="text" placeholder="0.00" disabled className="font-mono" value={estimatedCost} />
                                 </div>
 
-                                <Button className="w-full" size="lg" disabled={tokenAmount <= 0 || tokenAmount > 1000000 || launchpad.phaseStr !== "open"}>
+                                <Button onClick={handleBuyTokens} className="w-full" size="lg" disabled={tokenAmount <= 0 || tokenAmount > 1000000 || launchpad.phaseStr !== "open"}>
                                     Buy Tokens
                                 </Button>
 

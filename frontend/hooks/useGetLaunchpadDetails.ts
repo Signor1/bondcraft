@@ -39,6 +39,7 @@ export interface LaunchpadDetails {
   metadata: TokenMetadata;
   currentPrice: number;
   progress: number; // Funding progress as percentage
+  coinType: string;
   phaseStr: "open" | "closed" | "bootstrapped";
 }
 
@@ -77,7 +78,7 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
           console.error(`Invalid content for launchpad: ${id}`);
           return null;
         }
-
+        const typeMatches = content.type.match(/<([^>]+)>/);
         const fields = content.fields as any;
 
         // Extract nested fields correctly - matching contract field names
@@ -152,6 +153,7 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
         const creatorTokens = Number(params.creator_tokens || 0);
         const liquidityTokens = Number(params.liquidity_tokens || 0);
         const platformTokens = Number(params.platform_tokens || 0);
+        const coinType = typeMatches?.[1] || "";
         const phase = Number(state.phase || 0);
 
         // Calculate current price using bonding curve formula
@@ -206,6 +208,7 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
           metadata,
           currentPrice,
           progress,
+          coinType,
           phaseStr,
         };
       } catch (error) {
