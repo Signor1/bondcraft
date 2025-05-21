@@ -6,11 +6,13 @@ import LaunchpadCard from "@/components/launchpad-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlusCircle, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { myLaunchpads } from "@/utils/mockTokens"
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
+import useGetUserCreatedLaunchpads from "@/hooks/useGetUserCreatedLaunchpads"
 
 export default function MyLaunchpadsPage() {
     const account = useCurrentAccount();
+
+    const { userCreatedLaunchpads, isLoading, isError } = useGetUserCreatedLaunchpads()
 
     if (!account) {
         return (
@@ -31,80 +33,90 @@ export default function MyLaunchpadsPage() {
         <div className="container mx-auto py-20 md:px-8 px-4">
             <div className="mb-8 space-y-2">
                 <h1 className="text-3xl font-bold">My Launchpads</h1>
-                <p className="text-muted-foreground">Manage launchpads you&paos;ve created</p>
+                <p className="text-muted-foreground">Manage launchpads you&apos;ve created</p>
             </div>
 
-            <Tabs defaultValue="all" className="mb-8">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <TabsList>
-                        <TabsTrigger value="all">All Launchpads</TabsTrigger>
-                        <TabsTrigger value="open">Open</TabsTrigger>
-                        <TabsTrigger value="closed">Closed</TabsTrigger>
-                        <TabsTrigger value="bootstrapped">Bootstrapped</TabsTrigger>
-                    </TabsList>
-                    <Link href="/create">
-                        <Button className="gap-2">
-                            <PlusCircle className="h-4 w-4" />
-                            Create New Launchpad
-                        </Button>
-                    </Link>
+            {isLoading ? (
+                <div className="flex h-32 items-center justify-center">
+                    <div className="text-center">Loading launchpads...</div>
                 </div>
+            ) : isError ? (
+                <div className="flex flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-12 text-center">
+                    <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Error Loading Launchpads</h3>
+                    <p className="text-sm text-muted-foreground">We couldn&apos;t load the launchpads. Please try again later.</p>
+                </div>
+            ) : userCreatedLaunchpads && userCreatedLaunchpads.length > 0 ? (
+                <Tabs defaultValue="all" className="mb-8">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <TabsList>
+                            <TabsTrigger value="all">All Launchpads</TabsTrigger>
+                            <TabsTrigger value="open">Open</TabsTrigger>
+                            <TabsTrigger value="closed">Closed</TabsTrigger>
+                            <TabsTrigger value="bootstrapped">Bootstrapped</TabsTrigger>
+                        </TabsList>
+                        <Link href="/create">
+                            <Button className="gap-2">
+                                <PlusCircle className="h-4 w-4" />
+                                Create New Launchpad
+                            </Button>
+                        </Link>
+                    </div>
 
-                <TabsContent value="all" className="mt-6">
-                    {myLaunchpads.length > 0 ? (
+                    <TabsContent value="all" className="mt-6">
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {myLaunchpads.map((launchpad) => (
+                            {userCreatedLaunchpads.map((launchpad) => (
                                 <LaunchpadCard key={launchpad.id} {...launchpad} />
                             ))}
                         </div>
-                    ) : (
-                        <Card>
-                            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                                <div className="mb-4 rounded-full bg-muted p-3">
-                                    <AlertTriangle className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <h3 className="mb-2 text-lg font-medium">No Launchpads Found</h3>
-                                <p className="mb-6 text-sm text-muted-foreground">You haven&apos;t created any launchpads yet.</p>
-                                <Link href="/create">
-                                    <Button>Create Your First Launchpad</Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    )}
-                </TabsContent>
+                    </TabsContent>
 
-                <TabsContent value="open" className="mt-6">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {myLaunchpads
-                            .filter((l) => l.phase === "open")
-                            .map((launchpad) => (
-                                <LaunchpadCard key={launchpad.id} {...launchpad} />
-                            ))}
-                    </div>
-                </TabsContent>
+                    <TabsContent value="open" className="mt-6">
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {userCreatedLaunchpads
+                                .filter((l) => l.phase === "open")
+                                .map((launchpad) => (
+                                    <LaunchpadCard key={launchpad.id} {...launchpad} />
+                                ))}
+                        </div>
+                    </TabsContent>
 
-                <TabsContent value="closed" className="mt-6">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {myLaunchpads
-                            .filter((l) => l.phase === "closed")
-                            .map((launchpad) => (
-                                <LaunchpadCard key={launchpad.id} {...launchpad} />
-                            ))}
-                    </div>
-                </TabsContent>
+                    <TabsContent value="closed" className="mt-6">
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {userCreatedLaunchpads
+                                .filter((l) => l.phase === "closed")
+                                .map((launchpad) => (
+                                    <LaunchpadCard key={launchpad.id} {...launchpad} />
+                                ))}
+                        </div>
+                    </TabsContent>
 
-                <TabsContent value="bootstrapped" className="mt-6">
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {myLaunchpads
-                            .filter((l) => l.phase === "bootstrapped")
-                            .map((launchpad) => (
-                                <LaunchpadCard key={launchpad.id} {...launchpad} />
-                            ))}
-                    </div>
-                </TabsContent>
-            </Tabs>
+                    <TabsContent value="bootstrapped" className="mt-6">
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {userCreatedLaunchpads
+                                .filter((l) => l.phase === "bootstrapped")
+                                .map((launchpad) => (
+                                    <LaunchpadCard key={launchpad.id} {...launchpad} />
+                                ))}
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            ) : (
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                        <div className="mb-4 rounded-full bg-muted p-3">
+                            <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <h3 className="mb-2 text-lg font-medium">No Launchpads Found</h3>
+                        <p className="mb-6 text-sm text-muted-foreground">You haven&apos;t created any launchpads yet.</p>
+                        <Link href="/create">
+                            <Button>Create Your First Launchpad</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            )}
 
-            <Card>
+            <Card className="mt-28">
                 <CardHeader>
                     <CardTitle>Creator Actions Reference</CardTitle>
                 </CardHeader>
