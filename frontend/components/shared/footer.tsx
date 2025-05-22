@@ -1,13 +1,18 @@
 import Link from "next/link"
 import { Github, Twitter } from "lucide-react"
+import Image from "next/image"
+import logo from "@/public/logo.png"
 
 export default function Footer() {
     return (
         <footer className="border-t bg-background py-6 px-5">
             <div className="container mx-auto flex flex-col items-center gap-4 md:flex-row md:justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/" className="text-sm font-medium">
-                        BondCraft
+                    <Link href="/" className="flex items-center">
+                        <div className="relative h-8 w-8">
+                            <Image src={logo} alt="BondCraft Logo" className="h-full w-full" width={170} height={170} quality={100} priority />
+                        </div>
+                        <span className="text-sm font-medium">BondCraft</span>
                     </Link>
                     <span className="text-xs text-muted-foreground">Built on Sui</span>
                 </div>
