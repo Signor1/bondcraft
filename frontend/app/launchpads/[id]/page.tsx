@@ -349,52 +349,65 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                     </Card>
 
                     {/* Creator actions - conditionally rendered if user is creator */}
-                    {launchpad.creator === account?.address && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Creator Actions</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-between"
-                                        disabled={launchpad.phaseStr !== "open"}
-                                    >
-                                        Close Funding <ArrowRight className="h-4 w-4" />
-                                    </Button>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Creator Actions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {launchpad.creator === account?.address && (
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "open"}
+                                        >
+                                            Close Funding <ArrowRight className="h-4 w-4" />
+                                        </Button>
+
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "closed"}
+                                        >
+                                            Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "bootstrapped"}
+                                        >
+                                            Claim Creator Tokens <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "bootstrapped"}
+                                        >
+                                            Withdraw Funding <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                    </>
+                                )}
+                                {launchpad.platformAdmin === account?.address && (
                                     <Button
                                         variant="outline"
                                         className="w-full justify-between"
                                         disabled={launchpad.phaseStr !== "closed"}
                                     >
-                                        Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
+                                        Claim Platform Tokens <ArrowRight className="h-4 w-4" />
                                     </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-between"
-                                        disabled={launchpad.phaseStr !== "bootstrapped"}
-                                    >
-                                        Claim Creator Tokens <ArrowRight className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-between"
-                                        disabled={launchpad.phaseStr !== "bootstrapped"}
-                                    >
-                                        Withdraw Funding <ArrowRight className="h-4 w-4" />
-                                    </Button>
-                                    <div className="rounded-lg bg-muted/20 p-3 text-sm">
-                                        <p className="text-muted-foreground">
-                                            These actions are only available to the creator of this launchpad.
-                                        </p>
-                                    </div>
+                                )}
+                                <div className="rounded-lg bg-muted/20 p-3 text-sm">
+                                    <p className="text-muted-foreground">
+                                        These actions are only available to the creator of this launchpad.
+                                    </p>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

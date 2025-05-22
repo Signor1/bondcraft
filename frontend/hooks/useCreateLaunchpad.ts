@@ -55,37 +55,37 @@ const useCreateLaunchpad = () => {
 
   // Helper function to parse Move abort errors
   const parseMoveAbortError = useCallback((error: any): string => {
-    const errorString = error.toString() || error.message || "";
+    // Try different ways to get the error string
+    const errorString =
+      error?.toString() || error?.message || String(error) || "";
 
-    // Log the full error for debugging
-    console.error("Full error details:", {
-      error,
-      errorString,
-      errorType: typeof error,
-      errorConstructor: error.constructor?.name,
-    });
+    // Multiple regex patterns to catch different formats
+    const patterns = [
+      /MoveAbort\([^,]+,\s*(\d+)\)/,
+      /MoveAbort\([^)]+\)\s*,\s*(\d+)\)/,
+      /}, (\d+)\) in command/,
+      /abort_code:\s*(\d+)/,
+      /error_code:\s*(\d+)/,
+    ];
 
-    // Try to extract MoveAbort error code
-    const moveAbortMatch = errorString.match(/MoveAbort\([^,]+,\s*(\d+)\)/);
-    if (moveAbortMatch) {
-      const errorCode = parseInt(moveAbortMatch[1]);
-      const errorMessage =
-        MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
+    for (const pattern of patterns) {
+      const match = errorString.match(pattern);
+      if (match) {
+        const errorCode = parseInt(match[1]);
 
-      if (errorMessage) {
-        return `Error Code ${errorCode}: ${errorMessage}`;
-      } else {
-        return `Move Error Code ${errorCode}: Unknown error occurred`;
+        const errorMessage =
+          MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
+
+        if (errorMessage) {
+          return `Error Code ${errorCode}: ${errorMessage}`;
+        } else {
+          return `Move Error Code ${errorCode}: Unknown error occurred`;
+        }
       }
     }
 
-    // Try to extract other transaction failure patterns
-    if (errorString.includes("Transaction failed")) {
-      return errorString;
-    }
-
-    // Fallback to original error message
-    return error.message || errorString || "An unexpected error occurred";
+    // Fallback
+    return errorString || "An unexpected error occurred";
   }, []);
 
   // Helper function to wait for transaction to be confirmed
@@ -378,8 +378,6 @@ const useCreateLaunchpad = () => {
         // Dismiss loading toast
         toast.dismiss(loadingToast);
 
-        console.error("Error creating launchpad:", error);
-
         // Parse the error using our helper function
         const errorMessage = parseMoveAbortError(error);
 
@@ -388,8 +386,6 @@ const useCreateLaunchpad = () => {
           position: "top-right",
           duration: 8000, // Show error longer so user can read it
         });
-
-        console.error("Parsed error message:", errorMessage);
       }
     },
     [
@@ -398,6 +394,7 @@ const useCreateLaunchpad = () => {
       queryClient,
       waitForTransaction,
       router,
+      parseMoveAbortError,
     ]
   );
 };
