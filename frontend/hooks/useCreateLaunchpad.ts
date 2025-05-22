@@ -16,6 +16,7 @@ import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { normalizeSuiObjectId } from "@mysten/sui/utils";
 import { useRouter } from "next/navigation";
+import { convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals";
 
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;
@@ -260,6 +261,8 @@ const useCreateLaunchpad = () => {
         // Now create a second transaction to create the launchpad
         const launchpadTxb = new Transaction();
 
+        const decimals = values.decimals;
+
         // Call create_launchpad with the newly created objects
         launchpadTxb.moveCall({
           target: `${PACKAGE_ID}::factory::create_launchpad`,
@@ -267,12 +270,24 @@ const useCreateLaunchpad = () => {
             launchpadTxb.object(FACTORY_ID),
             launchpadTxb.object(treasuryCapId),
             launchpadTxb.object(metadataId),
-            launchpadTxb.pure.u64(values.totalSupply),
-            launchpadTxb.pure.u64(values.fundingTokens),
-            launchpadTxb.pure.u64(values.creatorTokens),
-            launchpadTxb.pure.u64(values.liquidityTokens),
-            launchpadTxb.pure.u64(values.platformTokens),
-            launchpadTxb.pure.u64(values.fundingGoal),
+            launchpadTxb.pure.u64(
+              convertToBaseUnits(values.totalSupply, decimals).toString()
+            ),
+            launchpadTxb.pure.u64(
+              convertToBaseUnits(values.fundingTokens, decimals).toString()
+            ),
+            launchpadTxb.pure.u64(
+              convertToBaseUnits(values.creatorTokens, decimals).toString()
+            ),
+            launchpadTxb.pure.u64(
+              convertToBaseUnits(values.liquidityTokens, decimals).toString()
+            ),
+            launchpadTxb.pure.u64(
+              convertToBaseUnits(values.platformTokens, decimals).toString()
+            ),
+            launchpadTxb.pure.u64(
+              convertUSDCToBase(values.fundingGoal).toString()
+            ),
           ],
           typeArguments: [coinType],
         });

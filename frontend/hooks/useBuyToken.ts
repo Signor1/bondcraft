@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PACKAGE_ID, USDC_TYPE } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { convertToBaseUnits } from "@/utils/decimals";
 
 const useBuyToken = () => {
   const queryClient = useQueryClient();
@@ -113,7 +114,7 @@ const useBuyToken = () => {
           arguments: [
             txb.object(launchpadId), // Launchpad object ID
             txb.object(usdcCoinObjectId), // USDC coin object
-            txb.pure.u64(tokenAmount), // Amount of tokens to buy
+            txb.pure.u64(convertToBaseUnits(tokenAmount, 9).toString()), // Amount of tokens to buy
           ],
           typeArguments: [typeOfCoin],
         });

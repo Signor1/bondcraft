@@ -5,11 +5,12 @@ import { useEffect, useRef } from "react"
 interface BondingCurveChartProps {
     k: number
     totalSupply: number
+    decimals: number
     tokensSold: number
     className?: string
 }
 
-export default function BondingCurveChart({ k, totalSupply, tokensSold, className = "" }: BondingCurveChartProps) {
+export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold, className = "" }: BondingCurveChartProps) {
     const svgRef = useRef<SVGSVGElement>(null)
 
     useEffect(() => {
@@ -31,7 +32,7 @@ export default function BondingCurveChart({ k, totalSupply, tokensSold, classNam
 
         for (let i = 0; i <= steps; i++) {
             const x = (i / steps) * maxX
-            const y = calculatePrice(x, k)
+            const y = calculatePrice(x, decimals, k)
             points.push({ x, y })
         }
 
@@ -110,7 +111,7 @@ export default function BondingCurveChart({ k, totalSupply, tokensSold, classNam
 
         // Add current point
         if (tokensSold > 0) {
-            const currentPrice = calculatePrice(tokensSold, k)
+            const currentPrice = calculatePrice(tokensSold, decimals, k)
             const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
             circle.setAttribute("cx", scaleX(tokensSold).toString())
             circle.setAttribute("cy", scaleY(currentPrice).toString())
@@ -139,11 +140,16 @@ export default function BondingCurveChart({ k, totalSupply, tokensSold, classNam
             tokensLine.setAttribute("stroke-dasharray", "4,4")
             svg.appendChild(tokensLine)
         }
-    }, [k, totalSupply, tokensSold])
+    }, [k, totalSupply, tokensSold, decimals])
 
     // Calculate price based on bonding curve
-    function calculatePrice(tokens: number, k: number): number {
-        return (k * tokens) / 1e9
+    function calculatePrice(tokens: number, decimals: number, k: number): number {
+        // Price formula: (k * tokens_sold) / SCALING_FACTOR
+        const priceBaseUnits = (k * tokens) / 1e9;
+
+        // Apply decimal adjustment (token decimals - USDC decimals)
+        const decimalAdjustment = 10 ** (decimals - 6);
+        return priceBaseUnits / decimalAdjustment;
     }
 
     function formatTokenAmount(amount: number): string {

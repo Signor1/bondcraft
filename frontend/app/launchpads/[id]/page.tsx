@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 import { useCurrentAccount } from "@mysten/dapp-kit"
 import useBuyToken from "@/hooks/useBuyToken"
 
+
 interface PageProps {
     params: {
         id: string
@@ -136,7 +137,8 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                 <Users className="mb-2 h-5 w-5 text-muted-foreground" />
                                 <p className="text-sm text-muted-foreground">Tokens Sold</p>
                                 <p className="text-lg font-bold">
-                                    {launchpad.state.tokensSold.toLocaleString()} / {launchpad.params.fundingTokens.toLocaleString()}
+                                    {launchpad.state.tokensSold.toLocaleString()} /
+                                    {launchpad.params.fundingTokens.toLocaleString()}
                                 </p>
                             </CardContent>
                         </Card>
@@ -166,7 +168,8 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                             </div>
                             <BondingCurveChart
                                 k={launchpad.params.k}
-                                totalSupply={launchpad.params.fundingTokens}
+                                totalSupply={launchpad.params.totalSupply}
+                                decimals={launchpad.params.decimals}
                                 tokensSold={launchpad.state.tokensSold}
                             />
                             <div className="mt-4 rounded-lg bg-muted/20 p-3 text-sm">

@@ -14,6 +14,7 @@ export interface LaunchpadCardProps {
     tokensSold: number
     fundingTokens: number
     phase: "open" | "closed" | "bootstrapped"
+    decimals: number
 }
 
 export default function LaunchpadCard({
@@ -24,9 +25,16 @@ export default function LaunchpadCard({
     currentPrice,
     tokensSold,
     fundingTokens,
-    phase,
+    phase
 }: LaunchpadCardProps) {
-    const percentComplete = Math.min(100, Math.round((tokensSold / fundingTokens) * 100))
+    const percentComplete = Math.min(100, (tokensSold / fundingTokens) * 100);
+
+    const formatNumber = (num: number, decimals: number = 2) => {
+        return num.toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        });
+    };
 
     return (
         <Card className="overflow-hidden transition-all hover:shadow-md">
@@ -57,9 +65,12 @@ export default function LaunchpadCard({
 
                     <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">
-                            {tokensSold.toLocaleString()} / {fundingTokens.toLocaleString()} Tokens
+                            {tokensSold.toLocaleString()} /{" "}
+                            {fundingTokens.toLocaleString()} Tokens
                         </span>
-                        <span className="font-medium">${currentPrice.toFixed(6)} USDC</span>
+                        <span className="font-medium">
+                            ${formatNumber(currentPrice, 6)} USDC
+                        </span>
                     </div>
                 </div>
             </CardContent>

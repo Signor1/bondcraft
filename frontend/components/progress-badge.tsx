@@ -3,6 +3,12 @@ interface ProgressBadgeProps {
 }
 
 export default function ProgressBadge({ percentComplete }: ProgressBadgeProps) {
+
+    const formattedPercent = percentComplete.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+
     let bgColor = "bg-yellow-500/15"
     let textColor = "text-yellow-500"
 
@@ -19,7 +25,7 @@ export default function ProgressBadge({ percentComplete }: ProgressBadgeProps) {
 
     return (
         <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bgColor} ${textColor}`}>
-            {percentComplete}% Funded
+            {formattedPercent}% Funded
         </div>
     )
 }

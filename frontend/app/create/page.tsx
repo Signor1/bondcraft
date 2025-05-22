@@ -13,12 +13,13 @@ import * as z from "zod"
 import { HelpCircle, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import useCreateLaunchpad from "@/hooks/useCreateLaunchpad";
+import { convertFromBaseUnits, convertFromUSDCBase, convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals"
 
 
 export const formSchema = z.object({
     tokenName: z.string().min(1, { message: "Token name is required" }).max(32, { message: "Token name must be 32 characters or less" }),
     tokenSymbol: z.string().min(1, { message: "Token symbol is required" }).max(32, { message: "Token symbol must be 32 characters or less" }),
-    decimals: z.number().min(6, { message: "Decimals must be at least 6" }).max(18, { message: "Decimals cannot exceed 18" }),
+    decimals: z.number().min(9, { message: "Decimals must be 9" }).max(9, { message: "Decimals cannot exceed 9" }),
     totalSupply: z.number().min(1000000, { message: "Total supply must be at least 1,000,000" }),
     fundingTokens: z.number().min(1000, { message: "Funding tokens must be at least 1,000" }),
     creatorTokens: z.number().min(1000, { message: "Creator tokens must be at least 1,000" }),
@@ -31,7 +32,6 @@ export default function CreatePage() {
     const [previewK, setPreviewK] = useState(0.00000001);
     const [previewPrice, setPreviewPrice] = useState(0.000001);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isPriceValid, setIsPriceValid] = useState(true);
     const [maxFundingTokens, setMaxFundingTokens] = useState(0);
 
     const createLaunchpad = useCreateLaunchpad();
@@ -42,12 +42,12 @@ export default function CreatePage() {
             tokenName: "",
             tokenSymbol: "",
             decimals: 9,
-            totalSupply: 10000000,
-            fundingTokens: 1400000,
-            creatorTokens: 2600000,
-            liquidityTokens: 2000000,
-            platformTokens: 4000000,
-            fundingGoal: 1000000000,
+            totalSupply: 1000000,      // 1M tokens 
+            fundingTokens: 400000,     // 40% for funding  
+            creatorTokens: 200000,     // 20% for creator
+            liquidityTokens: 200000,   // 20% for liquidity 
+            platformTokens: 200000,    // 20% for platform 
+            fundingGoal: 10000,        // $10K USDC 
         },
     })
 
@@ -57,37 +57,57 @@ export default function CreatePage() {
     const watchLiquidityTokens = form.watch("liquidityTokens");
     const watchPlatformTokens = form.watch("platformTokens");
     const watchFundingGoal = form.watch("fundingGoal");
+    const watchDecimals = form.watch("decimals");
 
     const totalAllocations =
         watchFundingTokens + watchCreatorTokens + watchLiquidityTokens + watchPlatformTokens;
 
-    const calculateK = (fundingGoal: number, fundingTokens: number) => {
-        return (2 * fundingGoal * 1e9) / (fundingTokens * fundingTokens);
-    };
+    // Bonding curve calculations
+    const calculateK = (fundingGoalUSD: number, fundingTokens: number, decimals: number): number => {
+        try {
+            const fundingGoalBase = Number(convertUSDCToBase(fundingGoalUSD))
+            const fundingTokensBase = Number(convertToBaseUnits(fundingTokens, decimals))
+            const decimalAdjustment = 10 ** (decimals - 6)
+            const adjustedTokens = fundingTokensBase * decimalAdjustment
 
-    const calculateInitialPrice = (k: number) => {
-        return (k * 1) / 1e9;
-    };
+            const numerator = 2 * fundingGoalBase * 1e9
+            const denominator = (adjustedTokens ** 2)
 
-    const calculateMaxFundingTokens = (fundingGoal: number) => {
-        return Math.floor(Math.sqrt((2 * fundingGoal) / 0.001));
-    };
+            const k = numerator / denominator
+            return k > 0 ? k : 1e-9
+        } catch {
+            return 0
+        }
+    }
+
+    const calculateInitialPrice = (k: number, decimals: number): number => {
+        // Calculate price in USDC (not base units first)
+        const priceInUSDC = (k * 1e9) / (10 ** (decimals - 6))
+
+        // Convert to USDC base units (multiply by 10^6) and round to get integer
+        const priceInUSDCBase = Math.round(priceInUSDC * (10 ** 6))
+
+        // Convert back from USDC base units to regular USDC amount
+        return convertFromUSDCBase(BigInt(priceInUSDCBase))
+    }
 
     useEffect(() => {
         if (watchFundingGoal > 0 && watchFundingTokens > 0) {
-            const k = calculateK(watchFundingGoal, watchFundingTokens);
-            const initialPrice = calculateInitialPrice(k);
-            const maxTokens = calculateMaxFundingTokens(watchFundingGoal);
-            setPreviewK(k);
-            setPreviewPrice(initialPrice);
-            setMaxFundingTokens(maxTokens);
-            setIsPriceValid(initialPrice >= 0.001);
+            const k = calculateK(watchFundingGoal, watchFundingTokens, watchDecimals)
+            const initialPrice = calculateInitialPrice(k, watchDecimals)
+
+            // Calculate max tokens using base units
+            const maxBase = Math.sqrt(Number(convertUSDCToBase(watchFundingGoal)) * 2 / 0.001)
+            const maxTokens = convertFromBaseUnits(BigInt(Math.round(maxBase)), watchDecimals)
+
+            setPreviewK(k)
+            setPreviewPrice(initialPrice)
+            setMaxFundingTokens(maxTokens)
         } else {
-            setIsPriceValid(false);
-            setMaxFundingTokens(0);
+            setMaxFundingTokens(0)
         }
 
-    }, [watchFundingGoal, watchFundingTokens, watchTotalSupply, form]);
+    }, [watchFundingGoal, watchFundingTokens, watchTotalSupply, form, watchDecimals]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true);
@@ -322,15 +342,7 @@ export default function CreatePage() {
                                                     </p>
                                                 </div>
                                             )}
-                                            {!isPriceValid && (
-                                                <div className="rounded-lg bg-destructive/10 p-3 text-destructive flex items-center gap-2">
-                                                    <AlertTriangle className="h-4 w-4" />
-                                                    <p className="text-sm">
-                                                        Initial price (${previewPrice.toFixed(9)}) is too low. Must be at least $0.001. Increase funding goal
-                                                        or reduce funding tokens to ≤ {maxFundingTokens.toLocaleString()}.
-                                                    </p>
-                                                </div>
-                                            )}
+
                                         </div>
                                     </TabsContent>
 
@@ -362,7 +374,7 @@ export default function CreatePage() {
                                         <Button
                                             type="submit"
                                             size="lg"
-                                            disabled={totalAllocations !== watchTotalSupply || !isPriceValid || isSubmitting}
+                                            disabled={totalAllocations !== watchTotalSupply || isSubmitting}
                                         >
                                             {isSubmitting ? "Creating..." : "Create Launchpad"}
                                         </Button>

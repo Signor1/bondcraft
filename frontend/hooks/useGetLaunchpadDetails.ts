@@ -3,6 +3,7 @@ import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
+import { convertFromBaseUnits, convertFromUSDCBase } from "@/utils/decimals";
 
 interface LaunchParams {
   totalSupply: number;
@@ -48,8 +49,12 @@ const calculateBondingCurvePrice = (
   decimals: number,
   k: number
 ): number => {
-  // Contract always uses 9 decimals for price calculation
-  return k * (tokensSold / Math.pow(10, decimals));
+  // Price formula: (k * tokens_sold) / SCALING_FACTOR
+  const priceBaseUnits = (k * tokensSold) / 1e9;
+
+  // Apply decimal adjustment (token decimals - USDC decimals)
+  const decimalAdjustment = 10 ** (decimals - 6);
+  return priceBaseUnits / decimalAdjustment;
 };
 
 const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
@@ -156,16 +161,56 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
         const coinType = typeMatches?.[1] || "";
         const phase = Number(state.phase || 0);
 
-        // Calculate current price using bonding curve formula
-        const currentPrice = calculateBondingCurvePrice(
+        const humanReadableFunding = convertFromBaseUnits(
+          BigInt(fundingTokens),
+          decimals
+        );
+        const humanReadableSold = convertFromBaseUnits(
+          BigInt(tokensSold),
+          decimals
+        );
+
+        const humanReadableSupply = convertFromBaseUnits(
+          BigInt(totalSupply),
+          decimals
+        );
+
+        const humanReadableCreator = convertFromBaseUnits(
+          BigInt(creatorTokens),
+          decimals
+        );
+
+        const humanReadableLiquidity = convertFromBaseUnits(
+          BigInt(liquidityTokens),
+          decimals
+        );
+
+        const humanReadablePlatform = convertFromBaseUnits(
+          BigInt(platformTokens),
+          decimals
+        );
+
+        const humanReadableFundingGoal = convertFromUSDCBase(
+          BigInt(fundingGoal)
+        );
+
+        const humanReadableFundingBalance = convertFromUSDCBase(
+          BigInt(fundingBalance)
+        );
+
+        const priceInUSDCBase = calculateBondingCurvePrice(
           tokensSold,
           decimals,
           k
         );
 
+        const currentPrice = priceInUSDCBase;
+
         // Calculate funding progress (percentage)
         const progress =
-          fundingTokens > 0 ? (tokensSold / fundingTokens) * 100 : 0;
+          humanReadableFunding > 0
+            ? (humanReadableSold / humanReadableFunding) * 100
+            : 0;
 
         // Convert phase number to string type - match contract constants
         // PHASE_OPEN = 0, PHASE_CLOSED = 1, PHASE_LIQUIDITY_BOOTSTRAPPED = 2
@@ -187,23 +232,23 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
         return {
           id,
           creator,
-          fundingBalance,
+          fundingBalance: humanReadableFundingBalance,
           metadataId,
           platformAdmin,
           vestingStartEpoch,
           params: {
-            totalSupply,
+            totalSupply: humanReadableSupply,
             decimals,
-            fundingGoal,
-            fundingTokens,
+            fundingGoal: humanReadableFundingGoal,
+            fundingTokens: humanReadableFunding,
             k,
-            liquidityTokens,
-            creatorTokens,
-            platformTokens,
+            liquidityTokens: humanReadableLiquidity,
+            creatorTokens: humanReadableCreator,
+            platformTokens: humanReadablePlatform,
           },
           state: {
             phase,
-            tokensSold,
+            tokensSold: humanReadableSold,
           },
           metadata,
           currentPrice,

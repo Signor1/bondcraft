@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
 import { FACTORY_ID } from "@/constant/Modules";
+import { convertFromBaseUnits } from "@/utils/decimals";
 
 interface Launchpad {
   id: string;
@@ -15,6 +16,8 @@ interface Launchpad {
   fundingTokens: number;
   phase: "open" | "closed" | "bootstrapped";
   creator: string; // Added creator field
+  decimals: number;
+  k: number;
 }
 
 // Bonding curve price calculation function
@@ -23,7 +26,12 @@ const calculateBondingCurvePrice = (
   decimals: number,
   k: number
 ): number => {
-  return k * (tokensSold / Math.pow(10, decimals));
+  // Price formula: (k * tokens_sold) / SCALING_FACTOR
+  const priceBaseUnits = (k * tokensSold) / 1e9;
+
+  // Apply decimal adjustment (token decimals - USDC decimals)
+  const decimalAdjustment = 10 ** (decimals - 6);
+  return priceBaseUnits / decimalAdjustment;
 };
 
 const useGetUserCreatedLaunchpads = () => {
@@ -78,6 +86,15 @@ const useGetUserCreatedLaunchpads = () => {
         const phase_num = Number(state.phase || 0);
         const k = Number(params.k || 0);
         const decimals = Number(params.decimals || 9);
+
+        const humanReadableFunding = convertFromBaseUnits(
+          BigInt(funding_tokens),
+          decimals
+        );
+        const humanReadableSold = convertFromBaseUnits(
+          BigInt(tokens_sold),
+          decimals
+        );
 
         let name = "Unknown Token";
         let symbol = "???";
@@ -141,22 +158,25 @@ const useGetUserCreatedLaunchpads = () => {
             phaseStr = "open"; // Default case
         }
 
-        // Calculate current price using the bonding curve formula
-        const currentPrice = calculateBondingCurvePrice(
+        const priceInUSDCBase = calculateBondingCurvePrice(
           tokens_sold,
           decimals,
           k
         );
 
+        const currentPrice = priceInUSDCBase;
+
         return {
           id: launchpadId,
           name,
           symbol,
-          tokensSold: tokens_sold,
-          fundingTokens: funding_tokens,
+          tokensSold: humanReadableSold,
+          fundingTokens: humanReadableFunding,
           currentPrice,
           phase: phaseStr,
           creator, // Include creator address
+          decimals,
+          k,
         };
       } catch (error) {
         console.error(
