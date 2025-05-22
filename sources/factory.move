@@ -73,8 +73,8 @@ module bond_craft::factory{
         );
 
         assert!(!metadata.get_name().is_empty(), EInvalidName);
-        assert!(!metadata.get_name().is_empty(), EInvalidSymbol);
-        assert!(metadata.get_decimals() > 5, EInvalidDecimals);
+        assert!(!metadata.get_symbol().is_empty(), EInvalidSymbol);
+        assert!(metadata.get_decimals() == 9, EInvalidDecimals);
         
         let creator = tx_context::sender(ctx);
         let platform_admin = creator;
@@ -91,15 +91,13 @@ module bond_craft::factory{
             platform_admin,
             ctx
         );
-        let launchpad_id = object::id(&launchpad);
+        let launchpad_id = launchpad;
         let factory_id = object::uid_to_address(&factory.id);
 
         // Updating factory state using helper functions
         add_launchpad_to_creator(factory, creator, launchpad_id);
         add_to_all_launchpads(factory, launchpad_id);
         increment_launchpad_count(factory);
-
-        transfer::public_transfer(launchpad, creator);
 
         // Emit event
         event::emit(LaunchpadCreatedEvent {

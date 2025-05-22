@@ -127,7 +127,7 @@ module bond_craft::launchpad{
         funding_goal: u64,
         platform_admin: address,
         ctx: &mut TxContext
-    ): Launchpad<T> {
+    ): ID {
         assert!(
             funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
             EInvalidAllocation
@@ -173,6 +173,8 @@ module bond_craft::launchpad{
             vesting_start_epoch: 0,
         };
 
+        let launchpad_id = object::id(&launchpad);
+
         // Emit event
         event::emit(LaunchpadCreatedEvent {
             sender: tx_context::sender(ctx),
@@ -183,7 +185,9 @@ module bond_craft::launchpad{
             epoch: tx_context::epoch(ctx),
         });
 
-        launchpad
+        transfer::share_object(launchpad);
+
+        launchpad_id
 
     }
 
