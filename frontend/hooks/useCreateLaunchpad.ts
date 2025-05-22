@@ -11,12 +11,12 @@ import { bcs } from "@mysten/bcs";
 import { useQueryClient } from "@tanstack/react-query";
 import { PACKAGE_ID, FACTORY_ID } from "@/constant/Modules";
 import * as z from "zod";
-import { formSchema } from "@/app/create/page";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { normalizeSuiObjectId } from "@mysten/sui/utils";
 import { useRouter } from "next/navigation";
 import { convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals";
+import { formSchema } from "@/utils/schema";
 
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;

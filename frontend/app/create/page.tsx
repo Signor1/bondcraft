@@ -16,7 +16,7 @@ import useCreateLaunchpad from "@/hooks/useCreateLaunchpad";
 import { convertFromBaseUnits, convertFromUSDCBase, convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals"
 
 
-export const formSchema = z.object({
+const formSchema = z.object({
     tokenName: z.string().min(1, { message: "Token name is required" }).max(32, { message: "Token name must be 32 characters or less" }),
     tokenSymbol: z.string().min(1, { message: "Token symbol is required" }).max(32, { message: "Token symbol must be 32 characters or less" }),
     decimals: z.number().min(9, { message: "Decimals must be 9" }).max(9, { message: "Decimals cannot exceed 9" }),
