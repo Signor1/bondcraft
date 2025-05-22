@@ -182,9 +182,9 @@ export default function CreatePage() {
                                                         <FormControl>
                                                             <Input
                                                                 type="number"
-                                                                min={6}
-                                                                max={18}
                                                                 {...field}
+                                                                defaultValue={9}
+                                                                disabled
                                                                 onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                                                             />
                                                         </FormControl>
