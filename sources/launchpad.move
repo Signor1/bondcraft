@@ -227,16 +227,8 @@ module bond_craft::launchpad{
         let minted = coin::mint(&mut launchpad.treasury, amount, ctx);
         transfer::public_transfer(minted, tx_context::sender(ctx));
 
-         let current_k = bonding_curve::calculate_k(
-            launchpad.params.funding_goal, 
-            6,
-            launchpad.params.funding_tokens,
-            launchpad.params.decimals
-        );
-
         // Update tokens sold
         launchpad.state.tokens_sold = launchpad.state.tokens_sold + amount;
-        launchpad.params.k = current_k;
 
         // Check if funding goal is reached
         if (balance::value(&launchpad.funding_balance) >= launchpad.params.funding_goal) {

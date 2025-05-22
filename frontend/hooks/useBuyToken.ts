@@ -12,6 +12,20 @@ import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { convertToBaseUnits } from "@/utils/decimals";
 
+// Error code mappings from your Move contract
+const MOVE_ERROR_CODES = {
+  1: "Invalid token allocation",
+  2: "Invalid bonding curve parameters",
+  5: "Invalid funding goal",
+  6: "Invalid total supply",
+  7: "Insufficient payment - you need more USDC for this purchase",
+  8: "Invalid phase - launchpad is not currently accepting purchases",
+  9: "Unauthorized access",
+  10: "Insufficient tokens available for sale",
+  11: "Vesting not ready",
+  12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
+} as const;
+
 const useBuyToken = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
@@ -27,6 +41,41 @@ const useBuyToken = () => {
       }),
     []
   );
+
+  // Helper function to parse Move abort errors
+  const parseMoveAbortError = useCallback((error: any): string => {
+    const errorString = error.toString() || error.message || "";
+
+    // Log the full error for debugging
+    console.error("Full error details:", {
+      error,
+      errorString,
+      errorType: typeof error,
+      errorConstructor: error.constructor?.name,
+    });
+
+    // Try to extract MoveAbort error code
+    const moveAbortMatch = errorString.match(/MoveAbort\([^,]+,\s*(\d+)\)/);
+    if (moveAbortMatch) {
+      const errorCode = parseInt(moveAbortMatch[1]);
+      const errorMessage =
+        MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
+
+      if (errorMessage) {
+        return `Error Code ${errorCode}: ${errorMessage}`;
+      } else {
+        return `Move Error Code ${errorCode}: Unknown error occurred`;
+      }
+    }
+
+    // Try to extract other transaction failure patterns
+    if (errorString.includes("Transaction failed")) {
+      return errorString;
+    }
+
+    // Fallback to original error message
+    return error.message || errorString || "An unexpected error occurred";
+  }, []);
 
   // Helper function to wait for transaction to be confirmed
   const waitForTransaction = useCallback(
@@ -163,29 +212,22 @@ const useBuyToken = () => {
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
         queryClient.invalidateQueries({ queryKey: ["launchpad"] });
         queryClient.invalidateQueries({ queryKey: ["user-launchpads"] });
-      } catch (error) {
+      } catch (error: any) {
         // Dismiss loading toast
         toast.dismiss(loadingToast);
 
         console.error("Error buying tokens:", error);
 
-        // Handle specific error types with custom messages
-        const errorMessage =
-          error instanceof Error
-            ? error.message.includes("EInsufficientPayment")
-              ? "Insufficient USDC balance for this purchase"
-              : error.message.includes("EInsufficientTokens")
-              ? "Not enough tokens available for sale"
-              : error.message.includes("EInvalidPhase")
-              ? "Launchpad is not in the open phase"
-              : error.message.includes("EExcessivePurchase")
-              ? "Purchase amount exceeds the maximum allowed"
-              : "Failed to purchase tokens"
-            : "An unexpected error occurred";
+        // Parse the error using our helper function
+        const errorMessage = parseMoveAbortError(error);
 
+        // Show detailed error message to user
         toast.error(errorMessage, {
           position: "top-right",
+          duration: 8000, // Show error longer so user can read it
         });
+
+        console.error("Parsed error message:", errorMessage);
       }
     },
     [

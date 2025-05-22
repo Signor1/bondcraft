@@ -21,6 +21,20 @@ import { formSchema } from "@/utils/schema";
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;
 
+// Error code mappings from your Move contract
+const MOVE_ERROR_CODES = {
+  1: "Invalid token allocation",
+  2: "Invalid bonding curve parameters",
+  5: "Invalid funding goal",
+  6: "Invalid total supply",
+  7: "Insufficient payment - you need more USDC for this purchase",
+  8: "Invalid phase - launchpad is not currently accepting purchases",
+  9: "Unauthorized access",
+  10: "Insufficient tokens available for sale",
+  11: "Vesting not ready",
+  12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
+} as const;
+
 const useCreateLaunchpad = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
@@ -38,6 +52,41 @@ const useCreateLaunchpad = () => {
       }),
     []
   );
+
+  // Helper function to parse Move abort errors
+  const parseMoveAbortError = useCallback((error: any): string => {
+    const errorString = error.toString() || error.message || "";
+
+    // Log the full error for debugging
+    console.error("Full error details:", {
+      error,
+      errorString,
+      errorType: typeof error,
+      errorConstructor: error.constructor?.name,
+    });
+
+    // Try to extract MoveAbort error code
+    const moveAbortMatch = errorString.match(/MoveAbort\([^,]+,\s*(\d+)\)/);
+    if (moveAbortMatch) {
+      const errorCode = parseInt(moveAbortMatch[1]);
+      const errorMessage =
+        MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
+
+      if (errorMessage) {
+        return `Error Code ${errorCode}: ${errorMessage}`;
+      } else {
+        return `Move Error Code ${errorCode}: Unknown error occurred`;
+      }
+    }
+
+    // Try to extract other transaction failure patterns
+    if (errorString.includes("Transaction failed")) {
+      return errorString;
+    }
+
+    // Fallback to original error message
+    return error.message || errorString || "An unexpected error occurred";
+  }, []);
 
   // Helper function to wait for transaction to be confirmed
   const waitForTransaction = useCallback(
@@ -331,21 +380,16 @@ const useCreateLaunchpad = () => {
 
         console.error("Error creating launchpad:", error);
 
-        const errorMessage =
-          error instanceof Error
-            ? error.message.includes("EInvalidSupply")
-              ? "Total allocations must equal total supply"
-              : error.message.includes("EInvalidAllocation")
-              ? "Allocations must equal total supply"
-              : error.message.includes("EInvalidFundingGoal")
-              ? "Funding goal must be greater than zero"
-              : error.message.includes("EInvalidTotalSupply")
-              ? "Total supply must be greater than zero"
-              : "Failed to create launchpad"
-            : "An unexpected error occurred";
+        // Parse the error using our helper function
+        const errorMessage = parseMoveAbortError(error);
+
+        // Show detailed error message to user
         toast.error(errorMessage, {
           position: "top-right",
+          duration: 8000, // Show error longer so user can read it
         });
+
+        console.error("Parsed error message:", errorMessage);
       }
     },
     [
