@@ -196,7 +196,7 @@ module bond_craft::launchpad{
     #[allow(lint(self_transfer))]
     public fun buy_tokens<T>(
         launchpad: &mut Launchpad<T>,
-        payment: Coin<USDC>,
+        mut payment: Coin<USDC>,
         amount: u64,
         ctx: &mut TxContext
     ){
@@ -220,8 +220,22 @@ module bond_craft::launchpad{
         // Check if payment is sufficient
         assert!(coin::value(&payment) >= total_cost, EInsufficientPayment);
 
-        // Store payment in funding_balance
-        coin::put(&mut launchpad.funding_balance, payment);
+        // Split the payment: take only what's needed, return the rest
+        let payment_amount = coin::value(&payment);
+    
+        if (payment_amount > total_cost) {
+            // Split the coin - take only the required amount
+            let cost_coin = coin::split(&mut payment, total_cost, ctx);
+        
+            // Store only the exact cost in funding_balance
+            coin::put(&mut launchpad.funding_balance, cost_coin);
+        
+            // Return the remaining USDC to the buyer
+            transfer::public_transfer(payment, tx_context::sender(ctx));
+        } else {
+            // Exact payment - use the entire coin
+            coin::put(&mut launchpad.funding_balance, payment);
+        };
 
         // Mint and transfer tokens to buyer
         let minted = coin::mint(&mut launchpad.treasury, amount, ctx);
