@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { Toaster } from 'sonner';
 import { Provider } from "@/config/Provider";
