@@ -1,6 +1,17 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PhaseBadge from "@/components/phase-badge"
 import BondingCurveChart from "@/components/bonding-curve-chart"
@@ -11,6 +22,7 @@ import useGetLaunchpadDetails from "@/hooks/useGetLaunchpadDetails"
 import { useEffect, useState } from "react"
 import { useCurrentAccount } from "@mysten/dapp-kit"
 import useBuyToken from "@/hooks/useBuyToken"
+import useCloseFunding from "@/hooks/useCloseFunding"
 
 
 interface PageProps {
@@ -43,6 +55,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
     }
 
     const handleTokenPurchase = useBuyToken()
+    const handlePhaseClose = useCloseFunding()
 
     const handleBuyTokens = async () => {
         console.log(launchpad?.coinType);
@@ -54,6 +67,14 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
         })
         refetch()
         setTokenAmount(0)
+    }
+
+    const handleCloseFunding = async () => {
+        await handlePhaseClose({
+            launchpadId: params.id,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
     }
 
 
@@ -356,8 +377,9 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                {launchpad.creator === account?.address && (
-                                    <>
+                                {/* Close funding */}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
                                         <Button
                                             variant="outline"
                                             className="w-full justify-between"
@@ -365,39 +387,49 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                         >
                                             Close Funding <ArrowRight className="h-4 w-4" />
                                         </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently close the phase and stop the fundraising process.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleCloseFunding}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
 
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-between"
-                                            disabled={launchpad.phaseStr !== "closed"}
-                                        >
-                                            Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-between"
-                                            disabled={launchpad.phaseStr !== "bootstrapped"}
-                                        >
-                                            Claim Creator Tokens <ArrowRight className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-between"
-                                            disabled={launchpad.phaseStr !== "bootstrapped"}
-                                        >
-                                            Withdraw Funding <ArrowRight className="h-4 w-4" />
-                                        </Button>
-                                    </>
-                                )}
-                                {launchpad.platformAdmin === account?.address && (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-between"
-                                        disabled={launchpad.phaseStr !== "closed"}
-                                    >
-                                        Claim Platform Tokens <ArrowRight className="h-4 w-4" />
-                                    </Button>
-                                )}
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                    disabled={launchpad.phaseStr !== "closed"}
+                                >
+                                    Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                    disabled={launchpad.phaseStr !== "bootstrapped"}
+                                >
+                                    Claim Creator Tokens <ArrowRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                    disabled={launchpad.phaseStr !== "bootstrapped"}
+                                >
+                                    Withdraw Funding <ArrowRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                    disabled={launchpad.phaseStr !== "closed"}
+                                >
+                                    Claim Platform Tokens <ArrowRight className="h-4 w-4" />
+                                </Button>
                                 <div className="rounded-lg bg-muted/20 p-3 text-sm">
                                     <p className="text-muted-foreground">
                                         These actions are only available to the creator of this launchpad.

@@ -11,7 +11,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PACKAGE_ID, USDC_TYPE } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
-import { convertToBaseUnits } from "@/utils/decimals";
 
 // Error code mappings from your Move contract
 const MOVE_ERROR_CODES = {
@@ -27,7 +26,7 @@ const MOVE_ERROR_CODES = {
   12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
 } as const;
 
-const useBuyToken = () => {
+const useCloseFunding = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
 
@@ -106,13 +105,9 @@ const useBuyToken = () => {
   return useCallback(
     async ({
       launchpadId,
-      tokenAmount,
-      estimatedCost,
       typeOfCoin,
     }: {
       launchpadId: string;
-      tokenAmount: number;
-      estimatedCost: string;
       typeOfCoin: string;
     }) => {
       if (!account) {
@@ -120,60 +115,24 @@ const useBuyToken = () => {
         return;
       }
 
-      if (tokenAmount <= 0 || tokenAmount > 1000000) {
-        toast.error("Invalid token amount. Must be between 1 and 1,000,000");
-        return;
-      }
-
       // Loading toast for user feedback
-      const loadingToast = toast.loading(
-        `Buying ${tokenAmount.toLocaleString()} tokens...`
-      );
+      const loadingToast = toast.loading(`Closing funding phase...`);
 
       try {
-        // Fetch USDC coin object
-        const { data: coins } = await suiClient.getCoins({
-          owner: account.address,
-          coinType: USDC_TYPE,
-        });
-
-        toast.loading(`Fetching USDC coin object...`, {
-          id: loadingToast,
-        });
-
-        if (!coins || coins.length === 0) {
-          throw new Error("No USDC coins found");
-        }
-
-        const sortedCoins = coins.sort((a, b) =>
-          BigInt(b.balance) > BigInt(a.balance)
-            ? 1
-            : BigInt(b.balance) < BigInt(a.balance)
-            ? -1
-            : 0
-        );
-        const coinWithHighestBalance = sortedCoins[0];
-        const usdcCoinObjectId = coinWithHighestBalance.coinObjectId;
-
         // Build transaction
         const txb = new Transaction();
 
-        // Call buy_tokens on the launchpad module
+        // Call close_funding on the launchpad module
         txb.moveCall({
-          target: `${PACKAGE_ID}::launchpad::buy_tokens`,
-          arguments: [
-            txb.object(launchpadId), // Launchpad object ID
-            txb.object(usdcCoinObjectId), // USDC coin object
-            txb.pure.u64(convertToBaseUnits(tokenAmount, 9).toString()), // Amount of tokens to buy
-          ],
+          target: `${PACKAGE_ID}::launchpad::close_funding`,
+          arguments: [txb.object(launchpadId)],
           typeArguments: [typeOfCoin],
         });
 
         // Set gas budget
         txb.setGasBudget(500000000); // 0.5 SUI
 
-        // Update loading message
-        toast.loading(`Processing payment of ~${estimatedCost} USDC...`, {
+        toast.loading(`Processing transaction...`, {
           id: loadingToast,
         });
 
@@ -202,12 +161,9 @@ const useBuyToken = () => {
 
         // Dismiss loading toast and show success
         toast.dismiss(loadingToast);
-        toast.success(
-          `Successfully purchased ${tokenAmount.toLocaleString()} tokens!`,
-          {
-            position: "top-right",
-          }
-        );
+        toast.success(`Successfully closed funding for ${launchpadId}!`, {
+          position: "top-right",
+        });
 
         // Invalidate queries to refresh the launchpad data
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
@@ -238,4 +194,4 @@ const useBuyToken = () => {
   );
 };
 
-export default useBuyToken;
+export default useCloseFunding;
