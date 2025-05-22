@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PACKAGE_ID } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { convertUSDCToBase } from "@/utils/decimals";
 
 // Error code mappings from your Move contract
 const MOVE_ERROR_CODES = {
@@ -26,7 +27,7 @@ const MOVE_ERROR_CODES = {
   12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
 } as const;
 
-const useClaimCreatorTokens = () => {
+const useWithdrawFunding = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
 
@@ -105,9 +106,11 @@ const useClaimCreatorTokens = () => {
   return useCallback(
     async ({
       launchpadId,
+      tokenAmount,
       typeOfCoin,
     }: {
       launchpadId: string;
+      tokenAmount: number;
       typeOfCoin: string;
     }) => {
       if (!account) {
@@ -115,26 +118,40 @@ const useClaimCreatorTokens = () => {
         return;
       }
 
+      if (tokenAmount <= 0) {
+        toast.error("Invalid USDC amount. Must be greater than zero.");
+        return;
+      }
+
       // Loading toast for user feedback
-      const loadingToast = toast.loading(`Claiming creator tokens...`);
+      const loadingToast = toast.loading(
+        `Withdrawing ${tokenAmount.toLocaleString()} USDC tokens from funding balance...`
+      );
 
       try {
         // Build transaction
         const txb = new Transaction();
 
-        // Call close_funding on the launchpad module
+        // Call buy_tokens on the launchpad module
         txb.moveCall({
-          target: `${PACKAGE_ID}::launchpad::claim_creator_tokens`,
-          arguments: [txb.object(launchpadId)],
+          target: `${PACKAGE_ID}::launchpad::withdraw_funding`,
+          arguments: [
+            txb.object(launchpadId), // Launchpad object ID
+            txb.pure.u64(convertUSDCToBase(tokenAmount).toString()),
+          ],
           typeArguments: [typeOfCoin],
         });
 
         // Set gas budget
         txb.setGasBudget(500000000); // 0.5 SUI
 
-        toast.loading(`Processing transaction...`, {
-          id: loadingToast,
-        });
+        // Update loading message
+        toast.loading(
+          `Processing withdrawal of ${tokenAmount.toLocaleString()} USDC...`,
+          {
+            id: loadingToast,
+          }
+        );
 
         // Sign and execute the transaction
         const result: SuiSignAndExecuteTransactionOutput =
@@ -162,7 +179,7 @@ const useClaimCreatorTokens = () => {
         // Dismiss loading toast and show success
         toast.dismiss(loadingToast);
         toast.success(
-          `Successfully claimed creator tokens for ${launchpadId}!`,
+          `Successfully withdrew ${tokenAmount.toLocaleString()} USDC!`,
           {
             position: "top-right",
           }
@@ -197,4 +214,4 @@ const useClaimCreatorTokens = () => {
   );
 };
 
-export default useClaimCreatorTokens;
+export default useWithdrawFunding;

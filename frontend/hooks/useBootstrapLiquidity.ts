@@ -26,7 +26,7 @@ const MOVE_ERROR_CODES = {
   12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
 } as const;
 
-const useClaimCreatorTokens = () => {
+const useBootstrapLiquidity = () => {
   const queryClient = useQueryClient();
   const account = useCurrentAccount();
 
@@ -116,23 +116,33 @@ const useClaimCreatorTokens = () => {
       }
 
       // Loading toast for user feedback
-      const loadingToast = toast.loading(`Claiming creator tokens...`);
+      const loadingToast = toast.loading(
+        `Bootstrapping liquidity to Cetus Protocol...`
+      );
 
       try {
         // Build transaction
         const txb = new Transaction();
 
-        // Call close_funding on the launchpad module
+        // Call buy_tokens on the launchpad module
         txb.moveCall({
-          target: `${PACKAGE_ID}::launchpad::claim_creator_tokens`,
-          arguments: [txb.object(launchpadId)],
+          target: `${PACKAGE_ID}::launchpad::bootstrap_liquidity`,
+          arguments: [
+            txb.object(launchpadId), // Launchpad object ID
+            // GlobalConfig object ID
+            // Pools from cetus factory
+            // metadata (Coinmetadata<T>)
+            // metadata (Coinmetadata<USDC>)
+            // clock (&Clock)
+          ],
           typeArguments: [typeOfCoin],
         });
 
         // Set gas budget
-        txb.setGasBudget(500000000); // 0.5 SUI
+        txb.setGasBudget(1000000000); // 1 SUI
 
-        toast.loading(`Processing transaction...`, {
+        // Update loading message
+        toast.loading(`Processing transaction ...`, {
           id: loadingToast,
         });
 
@@ -161,12 +171,9 @@ const useClaimCreatorTokens = () => {
 
         // Dismiss loading toast and show success
         toast.dismiss(loadingToast);
-        toast.success(
-          `Successfully claimed creator tokens for ${launchpadId}!`,
-          {
-            position: "top-right",
-          }
-        );
+        toast.success(`Successfully bootstrapped liquidity to Cetus Protocol`, {
+          position: "top-right",
+        });
 
         // Invalidate queries to refresh the launchpad data
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
@@ -197,4 +204,4 @@ const useClaimCreatorTokens = () => {
   );
 };
 
-export default useClaimCreatorTokens;
+export default useBootstrapLiquidity;

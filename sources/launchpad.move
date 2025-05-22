@@ -308,7 +308,7 @@ module bond_craft::launchpad{
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
         // Calculate final price from bonding curve
-        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9,  launchpad.params.k);
+        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals,  launchpad.params.k);
 
         // Create Cetus pool
         pool::create_pool<T, USDC>(

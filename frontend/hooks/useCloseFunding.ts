@@ -8,7 +8,7 @@ import {
 import { Transaction } from "@mysten/sui/transactions";
 import { SuiClient } from "@mysten/sui/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { PACKAGE_ID, USDC_TYPE } from "@/constant/Modules";
+import { PACKAGE_ID } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
 

@@ -12,6 +12,15 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PhaseBadge from "@/components/phase-badge"
 import BondingCurveChart from "@/components/bonding-curve-chart"
@@ -25,6 +34,9 @@ import useBuyToken from "@/hooks/useBuyToken"
 import useCloseFunding from "@/hooks/useCloseFunding"
 import useClaimCreatorTokens from "@/hooks/useClaimCreatorTokens"
 import useClaimPlatformTokens from "@/hooks/useClaimPlatformTokens"
+import useWithdrawFunding from "@/hooks/useWithdrawFunding"
+import { Label } from "@/components/ui/label"
+import useBootstrapLiquidity from "@/hooks/useBootstrapLiquidity"
 
 
 interface PageProps {
@@ -38,6 +50,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
     const { launchpad, isLoading, isError, error, refetch } = useGetLaunchpadDetails(params.id)
     const [estimatedCost, setEstimatedCost] = useState("0.00")
     const [tokenAmount, setTokenAmount] = useState(0)
+    const [withdrawAmount, setWithdrawAmount] = useState(0)
 
     // Calculate estimated cost when token amount changes
     useEffect(() => {
@@ -56,10 +69,17 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
         setTokenAmount(value)
     }
 
+    const handleWithdrawAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseInt(e.target.value) || 0
+        setWithdrawAmount(value)
+    }
+
     const handleTokenPurchase = useBuyToken()
     const handlePhaseClose = useCloseFunding()
     const handleCreatorTokenClaim = useClaimCreatorTokens()
     const handlePlatformTokenClaim = useClaimPlatformTokens()
+    const handleWithdrawFromFundingBalance = useWithdrawFunding()
+    const handleLiquidityBootstrap = useBootstrapLiquidity()
 
     const handleBuyTokens = async () => {
         console.log(launchpad?.coinType);
@@ -91,6 +111,24 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
 
     const handleClaimPlatformTokens = async () => {
         await handlePlatformTokenClaim({
+            launchpadId: params.id,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
+    }
+
+    const handleWithdraw = async () => {
+        await handleWithdrawFromFundingBalance({
+            launchpadId: params.id,
+            tokenAmount: withdrawAmount,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
+        setWithdrawAmount(0)
+    }
+
+    const handleBootstrapLiquidity = async () => {
+        await handleLiquidityBootstrap({
             launchpadId: params.id,
             typeOfCoin: launchpad?.coinType || "",
         })
@@ -422,13 +460,31 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                     </AlertDialogContent>
                                 </AlertDialog>
 
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-between"
-                                    disabled={launchpad.phaseStr !== "closed"}
-                                >
-                                    Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
-                                </Button>
+                                {/* Bootstrap liquidity */}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "closed"}
+                                        >
+                                            Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This action would send the allocated tokens to the liquidity pool.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleBootstrapLiquidity}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
 
                                 {/* Claim creator tokens */}
                                 <AlertDialog>
@@ -455,13 +511,39 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                     </AlertDialogContent>
                                 </AlertDialog>
 
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-between"
-                                    disabled={launchpad.phaseStr !== "bootstrapped"}
-                                >
-                                    Withdraw Funding <ArrowRight className="h-4 w-4" />
-                                </Button>
+                                {/* Withdraw funding */}
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "bootstrapped"}
+                                        >
+                                            Withdraw Funding <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-[425px]">
+                                        <DialogHeader>
+                                            <DialogTitle>Withdrawal</DialogTitle>
+                                            <DialogDescription>
+                                                You can only withdraw after bootstrapping liquidity. USDC withdrawal is from the funding balance.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="w-full grid py-4 px-3">
+                                            <div className="w-full items-center gap-4">
+                                                <Label htmlFor="name" className="block mb-2">
+                                                    Withdrawal Amount
+                                                </Label>
+                                                <Input id="name" type="number" placeholder="0" className="font-mono w-full" value={withdrawAmount || ""}
+                                                    onChange={handleWithdrawAmountChange} />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button type="button" size="lg" className="w-full" onClick={handleWithdraw}>Withdraw</Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+
 
                                 {/* Claim platform tokens */}
                                 <AlertDialog>
