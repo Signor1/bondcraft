@@ -23,6 +23,8 @@ import { useEffect, useState } from "react"
 import { useCurrentAccount } from "@mysten/dapp-kit"
 import useBuyToken from "@/hooks/useBuyToken"
 import useCloseFunding from "@/hooks/useCloseFunding"
+import useClaimCreatorTokens from "@/hooks/useClaimCreatorTokens"
+import useClaimPlatformTokens from "@/hooks/useClaimPlatformTokens"
 
 
 interface PageProps {
@@ -56,6 +58,8 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
 
     const handleTokenPurchase = useBuyToken()
     const handlePhaseClose = useCloseFunding()
+    const handleCreatorTokenClaim = useClaimCreatorTokens()
+    const handlePlatformTokenClaim = useClaimPlatformTokens()
 
     const handleBuyTokens = async () => {
         console.log(launchpad?.coinType);
@@ -71,6 +75,22 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
 
     const handleCloseFunding = async () => {
         await handlePhaseClose({
+            launchpadId: params.id,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
+    }
+
+    const handleClaimCreatorTokens = async () => {
+        await handleCreatorTokenClaim({
+            launchpadId: params.id,
+            typeOfCoin: launchpad?.coinType || "",
+        })
+        refetch()
+    }
+
+    const handleClaimPlatformTokens = async () => {
+        await handlePlatformTokenClaim({
             launchpadId: params.id,
             typeOfCoin: launchpad?.coinType || "",
         })
@@ -409,13 +429,32 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                 >
                                     Bootstrap Liquidity <ArrowRight className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-between"
-                                    disabled={launchpad.phaseStr !== "bootstrapped"}
-                                >
-                                    Claim Creator Tokens <ArrowRight className="h-4 w-4" />
-                                </Button>
+
+                                {/* Claim creator tokens */}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "closed"}
+                                        >
+                                            Claim Creator Tokens <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This action is done once after the launchpad is closed.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleClaimCreatorTokens}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
                                 <Button
                                     variant="outline"
                                     className="w-full justify-between"
@@ -423,13 +462,32 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                 >
                                     Withdraw Funding <ArrowRight className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-between"
-                                    disabled={launchpad.phaseStr !== "closed"}
-                                >
-                                    Claim Platform Tokens <ArrowRight className="h-4 w-4" />
-                                </Button>
+
+                                {/* Claim platform tokens */}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between"
+                                            disabled={launchpad.phaseStr !== "closed"}
+                                        >
+                                            Claim Platform Tokens <ArrowRight className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This action is done once after the launchpad is closed.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleClaimPlatformTokens}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
                                 <div className="rounded-lg bg-muted/20 p-3 text-sm">
                                     <p className="text-muted-foreground">
                                         These actions are only available to the creator of this launchpad.
