@@ -276,7 +276,6 @@ module bond_craft::launchpad{
             epoch: tx_context::epoch(ctx),
         });
     }
-    
 
     /// Bootstrapping liquidity by transferring liquidity tokens and funding tokens to an AMM pool
     public fun bootstrap_liquidity<T>(
