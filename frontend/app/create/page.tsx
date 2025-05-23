@@ -13,7 +13,7 @@ import * as z from "zod"
 import { HelpCircle, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import useCreateLaunchpad from "@/hooks/useCreateLaunchpad";
-import { convertFromBaseUnits, convertFromUSDCBase, convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals"
+import { convertFromBaseUnits, convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals"
 
 
 const formSchema = z.object({
@@ -65,40 +65,39 @@ export default function CreatePage() {
     // Bonding curve calculations
     const calculateK = (fundingGoalUSD: number, fundingTokens: number, decimals: number): number => {
         try {
-            const fundingGoalBase = Number(convertUSDCToBase(fundingGoalUSD))
-            const fundingTokensBase = Number(convertToBaseUnits(fundingTokens, decimals))
-            const decimalAdjustment = 10 ** (decimals - 6)
-            const adjustedTokens = fundingTokensBase * decimalAdjustment
+            // Convert user inputs to base units
+            const fundingGoalBase = Number(convertUSDCToBase(fundingGoalUSD)); // USDC base units (10^6)
+            const fundingTokensBase = Number(convertToBaseUnits(fundingTokens, decimals)); // Project token base units (10^9)
 
-            const numerator = 2 * fundingGoalBase * 1e9
-            const denominator = (adjustedTokens ** 2)
+            // Same formula as contract's calculate_k
+            const numerator = 2 * fundingGoalBase * 1e24; // SCALING_FACTOR = 1e24
+            const denominator = (fundingTokensBase ** 2);
 
-            const k = numerator / denominator
-            return k > 0 ? k : 1e-9
+            const k = numerator / denominator;
+            return k > 0 ? k : 1e-9; // Prevent division by zero in preview
         } catch {
-            return 0
+            return 0;
         }
     }
 
-    const calculateInitialPrice = (k: number, decimals: number): number => {
-        // Calculate price in USDC (not base units first)
-        const priceInUSDC = (k * 1e9) / (10 ** (decimals - 6))
+    const calculateInitialPrice = (k: number): number => {
+        // Price = k * tokens_sold / SCALING_FACTOR
+        // For initial price (tokens_sold = 0), use 1 base token to avoid zero
+        const priceBaseUSDC = (k * 1) / 1e24; // Base USDC per base project token
 
-        // Convert to USDC base units (multiply by 10^6) and round to get integer
-        const priceInUSDCBase = Math.round(priceInUSDC * (10 ** 6))
-
-        // Convert back from USDC base units to regular USDC amount
-        return convertFromUSDCBase(BigInt(priceInUSDCBase))
+        // Convert to USDC per whole project token:
+        // (priceBaseUSDC [USDC base] / 1e6) / (1 base token / 1e9)
+        return (priceBaseUSDC / 1e6) * 1e9;
     }
 
     useEffect(() => {
         if (watchFundingGoal > 0 && watchFundingTokens > 0) {
             const k = calculateK(watchFundingGoal, watchFundingTokens, watchDecimals)
-            const initialPrice = calculateInitialPrice(k, watchDecimals)
+            const initialPrice = calculateInitialPrice(k)
 
-            // Calculate max tokens using base units
-            const maxBase = Math.sqrt(Number(convertUSDCToBase(watchFundingGoal)) * 2 / 0.001)
-            const maxTokens = convertFromBaseUnits(BigInt(Math.round(maxBase)), watchDecimals)
+            // Max funding tokens calculation (sqrt(2*goal/k))
+            const maxBase = Math.sqrt((2 * Number(convertUSDCToBase(watchFundingGoal)) * 1e24) / k);
+            const maxTokens = convertFromBaseUnits(BigInt(Math.round(maxBase)), watchDecimals);
 
             setPreviewK(k)
             setPreviewPrice(initialPrice)
@@ -407,11 +406,11 @@ export default function CreatePage() {
                                 <div className="space-y-3 pt-4">
                                     <div className="flex justify-between">
                                         <span className="text-sm text-muted-foreground">Initial Price</span>
-                                        <span className="font-mono text-sm">${previewPrice.toFixed(9)}</span>
+                                        <span className="font-mono text-sm">${previewPrice.toFixed(6)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-sm text-muted-foreground">Bonding Curve k</span>
-                                        <span className="font-mono text-sm">{previewK.toExponential(8)}</span>
+                                        <span className="font-mono text-sm">{previewK.toExponential(2)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-sm text-muted-foreground">Total Supply</span>

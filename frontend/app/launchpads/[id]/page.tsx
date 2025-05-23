@@ -331,11 +331,11 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between text-sm">
                                         <label htmlFor="token-amount">Token Amount</label>
-                                        <span className="text-xs text-muted-foreground">Max: 1,000,000 per tx</span>
+                                        <span className="text-xs text-muted-foreground">Max: 1,000 per tx</span>
                                     </div>
                                     <Input id="token-amount" type="number" placeholder="0" className="font-mono" value={tokenAmount || ""}
                                         onChange={handleTokenAmountChange} min="0"
-                                        max="1000000" />
+                                        max="1000" />
                                 </div>
 
                                 <div className="space-y-2">

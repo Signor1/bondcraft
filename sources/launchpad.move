@@ -30,7 +30,7 @@ module bond_craft::launchpad{
     const PHASE_CLOSED: u8 = 1;
     const PHASE_LIQUIDITY_BOOTSTRAPPED: u8 = 2;
 
-    const MAX_TOKENS_PER_TX: u64 = 1_000_000; // 1M tokens
+    const MAX_TOKENS_PER_TX: u64 = 1_000; // 1K tokens
 
 
     public struct Launchpad<phantom T> has key, store{
@@ -138,13 +138,8 @@ module bond_craft::launchpad{
 
         let decimals = coin::get_decimals<T>(metadata);
 
-        // Calculate k with correct decimal handling
-        let k = bonding_curve::calculate_k(
-            funding_goal, 
-            6, // USDC has 6 decimals
-            funding_tokens,
-            decimals // Project token decimals
-        );
+        // Calculate k using base units (no decimals needed)
+        let k = bonding_curve::calculate_k(funding_goal, funding_tokens);
 
         // Validate that k is not zero
         assert!(k > 0, EInvalidBondingCurve);
@@ -166,7 +161,7 @@ module bond_craft::launchpad{
             },
             state: LaunchState {
                 tokens_sold: 0,
-                phase: 0
+                phase: PHASE_OPEN
             },
             creator: tx_context::sender(ctx),
             platform_admin,
@@ -208,15 +203,12 @@ module bond_craft::launchpad{
             EInsufficientTokens
         );
 
-        // Calculate required payment based on bonding curve
-        // We now pass the correct token_decimals parameter
-        let tokens_sold = launchpad.state.tokens_sold;
-        let token_decimals = launchpad.params.decimals;
-        let k = launchpad.params.k;
-
-        // Instead of multiplying the current price by amount, use a more accurate cost calculation
-        // that accounts for the price increase along the curve
-        let total_cost = bonding_curve::calculate_cost(tokens_sold, amount, token_decimals, k);
+        // Calculate cost in base USDC units
+        let total_cost = bonding_curve::calculate_cost(
+            launchpad.state.tokens_sold,
+            amount,
+            launchpad.params.k
+        );
 
         // Check if payment is sufficient
         assert!(coin::value(&payment) >= total_cost, EInsufficientPayment);
@@ -238,7 +230,7 @@ module bond_craft::launchpad{
         };
 
         // Calculate the current price for the event
-        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, token_decimals, k);
+        let current_price = bonding_curve::calculate_price(launchpad.state.tokens_sold,  launchpad.params.k);
 
         // Emit event
         event::emit(TokensPurchasedEvent {
@@ -294,7 +286,7 @@ module bond_craft::launchpad{
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
         // Calculate final price from bonding curve
-        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9,  launchpad.params.k);
+        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold,   launchpad.params.k);
 
         // Create Cetus pool
         pool::create_pool<T, USDC>(
@@ -455,7 +447,7 @@ module bond_craft::launchpad{
 
     /// Get the current token price based on the bonding curve.
     public fun current_price<T>(launchpad: &Launchpad<T>): u64 {
-        bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals, launchpad.params.k)
+        bonding_curve::calculate_price(launchpad.state.tokens_sold,  launchpad.params.k)
     }
 
     /// Get the amount of funding tokens collected.

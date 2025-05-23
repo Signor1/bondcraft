@@ -31,9 +31,9 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
         const maxX = totalSupply * 1.1 // Add some margin
 
         for (let i = 0; i <= steps; i++) {
-            const x = (i / steps) * maxX
-            const y = calculatePrice(x, decimals, k)
-            points.push({ x, y })
+            const xWholeTokens = (i / steps) * maxX;
+            const y = calculatePrice(xWholeTokens, decimals, k);
+            points.push({ x: xWholeTokens, y });
         }
 
         // Find max price for scaling
@@ -143,13 +143,19 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
     }, [k, totalSupply, tokensSold, decimals])
 
     // Calculate price based on bonding curve
-    function calculatePrice(tokens: number, decimals: number, k: number): number {
-        // Price formula: (k * tokens_sold) / SCALING_FACTOR
-        const priceBaseUnits = (k * tokens) / 1e9;
+    function calculatePrice(tokensWhole: number, decimals: number, k: number): number {
+        // Constants must match contract's SCALING_FACTOR (1e24)
+        const SCALING_FACTOR = 1e24;
 
-        // Apply decimal adjustment (token decimals - USDC decimals)
-        const decimalAdjustment = 10 ** (decimals - 6);
-        return priceBaseUnits / decimalAdjustment;
+        // Convert whole tokens to base units for calculation
+        const tokensBase = tokensWhole * (10 ** decimals);
+
+        // Price formula: (k * tokens_base) / SCALING_FACTOR (in base USDC per base token)
+        const priceBaseUSDC = (k * tokensBase) / SCALING_FACTOR;
+
+        // Convert to USDC per whole token:
+        // (base USDC / 1e6) / (base token / 1e9) = priceBaseUSDC * 1e3
+        return priceBaseUSDC * 1000;
     }
 
     function formatTokenAmount(amount: number): string {

@@ -45,16 +45,17 @@ export interface LaunchpadDetails {
 }
 
 const calculateBondingCurvePrice = (
-  tokensSold: number,
-  decimals: number,
-  k: number
+  tokensSoldBase: number, // Base units of project token sold (1 token = 1e9 base units)
+  k: number // Bonding curve constant from contract
 ): number => {
-  // Price formula: (k * tokens_sold) / SCALING_FACTOR
-  const priceBaseUnits = (k * tokensSold) / 1e9;
+  // Constants must match contract's SCALING_FACTOR (1e24)
+  const SCALING_FACTOR = 1e24;
 
-  // Apply decimal adjustment (token decimals - USDC decimals)
-  const decimalAdjustment = 10 ** (decimals - 6);
-  return priceBaseUnits / decimalAdjustment;
+  // Price calculation in base USDC units per base project token
+  // Matches contract's formula: price = (k * tokens_sold) / SCALING_FACTOR
+  const priceBaseUSDC = (k * tokensSoldBase) / SCALING_FACTOR;
+
+  return priceBaseUSDC;
 };
 
 const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
@@ -200,7 +201,6 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
 
         const priceInUSDCBase = calculateBondingCurvePrice(
           tokensSold,
-          decimals,
           k
         );
 
