@@ -11,7 +11,7 @@ module bond_craft::launchpad{
 
     // Testnet USDC type
     use usdc::usdc::USDC;
-
+    
     // Error codes
     const EInvalidAllocation: u64 = 1;
     const EInvalidBondingCurve: u64 = 2;
@@ -197,16 +197,16 @@ module bond_craft::launchpad{
     #[allow(lint(self_transfer))]
     public fun buy_tokens<T>(
         launchpad: &mut Launchpad<T>,
-        mut payment: Coin<USDC>,
+        payment: Coin<USDC>,
         amount: u64,
         ctx: &mut TxContext
     ){
         assert!(launchpad.state.phase == PHASE_OPEN, EInvalidPhase);
+        assert!(amount <= MAX_TOKENS_PER_TX * (10u64).pow(launchpad.params.decimals), EExcessivePurchase);
         assert!(
             launchpad.state.tokens_sold + amount <= launchpad.params.funding_tokens,
             EInsufficientTokens
         );
-        assert!(amount <= MAX_TOKENS_PER_TX * (10u64).pow(launchpad.params.decimals), EExcessivePurchase);
 
         // Calculate required payment based on bonding curve
         // We now pass the correct token_decimals parameter
@@ -221,22 +221,8 @@ module bond_craft::launchpad{
         // Check if payment is sufficient
         assert!(coin::value(&payment) >= total_cost, EInsufficientPayment);
 
-        // Split the payment: take only what's needed, return the rest
-        let payment_amount = coin::value(&payment);
-    
-        if (payment_amount > total_cost) {
-            // Split the coin - take only the required amount
-            let cost_coin = coin::split(&mut payment, total_cost, ctx);
-        
-            // Store only the exact cost in funding_balance
-            coin::put(&mut launchpad.funding_balance, cost_coin);
-        
-            // Return the remaining USDC to the buyer
-            transfer::public_transfer(payment, tx_context::sender(ctx));
-        } else {
-            // Exact payment - use the entire coin
-            coin::put(&mut launchpad.funding_balance, payment);
-        };
+        // Store payment in funding_balance
+        coin::put(&mut launchpad.funding_balance, payment);
 
         // Mint and transfer tokens to buyer
         let minted = coin::mint(&mut launchpad.treasury, amount, ctx);
@@ -264,7 +250,6 @@ module bond_craft::launchpad{
             epoch: tx_context::epoch(ctx),
         });
     }
-
 
     /// Close the funding phase (only callable by creator).
     public fun close_funding<T>(
@@ -309,7 +294,7 @@ module bond_craft::launchpad{
         let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
 
         // Calculate final price from bonding curve
-        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, launchpad.params.decimals,  launchpad.params.k);
+        let final_price = bonding_curve::calculate_price(launchpad.state.tokens_sold, 9,  launchpad.params.k);
 
         // Create Cetus pool
         pool::create_pool<T, USDC>(
@@ -487,101 +472,4 @@ module bond_craft::launchpad{
     public fun platform_admin<T>(launchpad: &Launchpad<T>): address {
         launchpad.platform_admin
     }
-
-    // ================== TESTING METHODS ==================
-    /// Create a mock launchpad for testing purposes.
-    #[test_only]
-    public fun create_test<T>(
-        ctx: &mut TxContext,
-        metadata: &CoinMetadata<T>,
-        decimals: u8,
-        total_supply: u64,
-        funding_tokens: u64,
-        creator_tokens: u64,
-        liquidity_tokens: u64,
-        platform_tokens: u64,
-        funding_goal: u64,
-        platform_admin: address
-    ): Launchpad<T> {
-
-        // Validate inputs
-        assert!(
-        funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-        EInvalidAllocation
-        );
-        assert!(funding_goal > 0, EInvalidFundingGoal);
-        assert!(total_supply > 0, EInvalidTotalSupply);
-
-        // Mock TreasuryCap using test-only function
-        let treasury = coin::create_treasury_cap_for_testing<T>(ctx);
-
-        let k = bonding_curve::calculate_k(funding_goal, 6, funding_tokens, decimals);
-
-        let launchpad = Launchpad<T> {
-            id: object::new(ctx),
-            treasury,
-            metadata_id: object::id(metadata),
-            params: LaunchParams {
-                total_supply,
-                funding_tokens,
-                creator_tokens,
-                liquidity_tokens,
-                platform_tokens,
-                funding_goal,
-                k,
-                decimals
-            },
-            state: LaunchState {
-                tokens_sold: 0,
-                phase: 0
-            },
-            creator: tx_context::sender(ctx),
-            platform_admin,
-            funding_balance: balance::zero<USDC>(),
-            vesting_start_epoch: 0,
-        };
-
-        // Emit event
-        event::emit(LaunchpadCreatedEvent {
-            sender: tx_context::sender(ctx),
-            launchpad_id: object::uid_to_address(&launchpad.id),
-            total_supply,
-            funding_goal,
-            k,
-            epoch: tx_context::epoch(ctx),
-        });
-
-        launchpad
-    }
-
-    #[test_only]
-    public fun bootstrap_liquidity_test<T>(
-        launchpad: &mut Launchpad<T>,
-        ctx: &mut TxContext
-    ) {
-        assert!(launchpad.creator == tx_context::sender(ctx), EUnauthorized);
-        assert!(launchpad.state.phase == PHASE_CLOSED, EInvalidPhase);
-
-        // Simulate minting liquidity tokens
-        let liquidity_amount = launchpad.params.liquidity_tokens;
-        let liquidity_coins = coin::mint(&mut launchpad.treasury, liquidity_amount, ctx);
-        transfer::public_transfer(liquidity_coins, tx_context::sender(ctx));
-
-        // Simulate transferring funding tokens
-        let funding_amount = balance::value(&launchpad.funding_balance);
-        let funding_coins = coin::take(&mut launchpad.funding_balance, funding_amount, ctx);
-        transfer::public_transfer(funding_coins, tx_context::sender(ctx));
-
-        // Update phase
-        launchpad.state.phase = PHASE_LIQUIDITY_BOOTSTRAPPED;
-
-        // Emit event
-        event::emit(LiquidityBootstrappedEvent {
-            sender: tx_context::sender(ctx),
-            launchpad_id: object::uid_to_address(&launchpad.id),
-            final_price: bonding_curve::calculate_price(launchpad.state.tokens_sold, 9, launchpad.params.k),
-            epoch: tx_context::epoch(ctx),
-        });
-    }
-
 }
