@@ -260,7 +260,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                             <div className="mt-4 rounded-lg bg-muted/20 p-3 text-sm">
                                 <p>
                                     <span className="font-medium">Bonding Curve Explained:</span> The price increases as more tokens are
-                                    sold. The formula is: price = k × tokens_sold ÷ 10^9
+                                    sold. The formula is: price = (k × tokens_sold) ÷ 10<sup>24</sup>
                                 </p>
                             </div>
                         </CardContent>
@@ -361,7 +361,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                     <p className="text-muted-foreground">
                                         Tokens will be sent directly to your connected wallet.
                                         <br />
-                                        Max tokens per transaction: 1,000,000
+                                        Max tokens per transaction: 1,000
                                     </p>
                                 </div>
                             </div>
