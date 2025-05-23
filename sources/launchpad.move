@@ -23,6 +23,7 @@ module bond_craft::launchpad{
     const EInsufficientTokens: u64 = 10;
     const EVestingNotReady: u64 = 11;
     const EExcessivePurchase: u64 = 12;
+    const EAlreadyClaimed: u64 = 13;
 
     // Phase constants
     const PHASE_OPEN: u8 = 0;
@@ -347,6 +348,8 @@ module bond_craft::launchpad{
         assert!(launchpad.vesting_start_epoch > 0, EVestingNotReady);
 
         let creator_amount = launchpad.params.creator_tokens;
+        assert!(creator_amount > 0, EAlreadyClaimed);
+
         let creator_coins = coin::mint(&mut launchpad.treasury, creator_amount, ctx);
         transfer::public_transfer(creator_coins, launchpad.creator);
 
@@ -371,6 +374,8 @@ module bond_craft::launchpad{
         assert!(launchpad.state.phase >= PHASE_CLOSED, EInvalidPhase);
 
         let platform_amount = launchpad.params.platform_tokens;
+        assert!(platform_amount > 0, EAlreadyClaimed);
+
         let platform_coins = coin::mint(&mut launchpad.treasury, platform_amount, ctx);
 
         // Transfer platform tokens to the platform admin

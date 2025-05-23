@@ -8,7 +8,11 @@ import {
 import { Transaction } from "@mysten/sui/transactions";
 import { SuiClient } from "@mysten/sui/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { PACKAGE_ID, USDC_TYPE } from "@/constant/Modules";
+import {
+  PACKAGE_ID,
+  USDC_TESTNET_METADATA_ID,
+  USDC_TYPE,
+} from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
 
@@ -22,6 +26,7 @@ const CETUS_CONSTANTS = {
   // Clock object (standard Sui clock)
   CLOCK: "0x6",
   USDC_TYPE,
+  USDC_METADATA_ID: USDC_TESTNET_METADATA_ID,
 } as const;
 
 // Error code mappings from your Move contracts
@@ -68,54 +73,6 @@ const useBootstrapLiquidity = () => {
         url: getFullnodeUrl("testnet"), // Use the appropriate network URL
       }),
     []
-  );
-
-  // Helper function to find coin metadata object ID
-  const findCoinMetadata = useCallback(
-    async (coinType: string): Promise<string | null> => {
-      try {
-        // Method 1: Query objects by type
-        const response = await suiClient.queryEvents({
-          query: {
-            MoveEventType: `0x2::coin::CoinMetadataEvent<${coinType}>`,
-          },
-          limit: 1,
-          order: "descending",
-        });
-
-        if (response.data.length > 0) {
-          const event = response.data[0];
-          // Extract metadata ID from event if available
-          const metadataId = (event.parsedJson as any)?.metadata_id;
-          if (metadataId) {
-            return metadataId;
-          }
-        }
-
-        // Method 2: Search for CoinMetadata objects by owner (package)
-        const packageId = coinType.split("::")[0];
-        const metadataObjects = await suiClient.getOwnedObjects({
-          owner: packageId,
-          filter: {
-            StructType: `0x2::coin::CoinMetadata<${coinType}>`,
-          },
-          options: {
-            showType: true,
-            showContent: true,
-          },
-        });
-
-        if (metadataObjects.data.length > 0) {
-          return metadataObjects.data[0].data?.objectId || null;
-        }
-
-        return null;
-      } catch (error) {
-        console.error("Error finding coin metadata:", error);
-        return null;
-      }
-    },
-    [suiClient]
   );
 
   // Helper function to parse Move abort errors
@@ -248,18 +205,6 @@ const useBootstrapLiquidity = () => {
       const loadingToast = toast.loading("Preparing to bootstrap liquidity...");
 
       try {
-        // Getting USDC Metadata ID
-        toast.loading("Finding USDC metadata...", { id: loadingToast });
-
-        const finalUsdcMetadataId = await findCoinMetadata(
-          CETUS_CONSTANTS.USDC_TYPE
-        );
-
-        if (!finalUsdcMetadataId) {
-          throw new Error(
-            `Could not find USDC metadata for type: ${CETUS_CONSTANTS.USDC_TYPE}. Please provide usdcMetadataId explicitly.`
-          );
-        }
         // Build transaction
         const txb = new Transaction();
 
@@ -275,7 +220,7 @@ const useBootstrapLiquidity = () => {
             txb.object(CETUS_CONSTANTS.GLOBAL_CONFIG), // cetus_config: &GlobalConfig
             txb.object(CETUS_CONSTANTS.POOLS), // pools: &mut Pools
             txb.object(tokenMetadataId), // metadata_t: &CoinMetadata<T>
-            txb.object(finalUsdcMetadataId), // metadata_usdc: &CoinMetadata<USDC>
+            txb.object(CETUS_CONSTANTS.USDC_METADATA_ID), // metadata_usdc: &CoinMetadata<USDC>
             txb.object(CETUS_CONSTANTS.CLOCK), // clock: &Clock
           ],
           typeArguments: [typeOfCoin],
@@ -366,7 +311,6 @@ const useBootstrapLiquidity = () => {
       waitForTransaction,
       queryClient,
       parseMoveAbortError,
-      findCoinMetadata,
     ]
   );
 };

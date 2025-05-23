@@ -6,3 +6,6 @@ export const FACTORY_ID =
 
 export const USDC_TYPE =
   "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC";
+
+export const USDC_TESTNET_METADATA_ID =
+  "0x5a2d9b8a2cbea39a2ce6186a31031496dd02b3b3eef59b7962bd3e2f6ddd988f";

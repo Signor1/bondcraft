@@ -12,12 +12,12 @@ module bond_craft::pool{
     use integer_mate::i32::{Self, I32};
 
     // Error codes
-    const EInvalidTickRange: u64 = 1;
-    const EInvalidLiquidity: u64 = 2;
-    const EInvalidTickSpacing: u64 = 3;
-    const ETickNotAligned: u64 = 4;
-    const EInsufficientLiquidity: u64 = 5;
-    const EInvalidPrice: u64 = 6;
+    const EInvalidTickRange: u64 = 101;
+    const EInvalidLiquidity: u64 = 102;
+    const EInvalidTickSpacing: u64 = 103;
+    const ETickNotAligned: u64 = 104;
+    const EInsufficientLiquidity: u64 = 105;
+    const EInvalidPrice: u64 = 106;
 
     // Events
     public struct PoolCreatedEvent has copy, drop {

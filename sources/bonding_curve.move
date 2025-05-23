@@ -96,17 +96,31 @@ module bond_craft::bonding_curve {
         token_decimals: u8,
         k: u64
     ): u64 {
-        // Start price
-        let start_price = calculate_price(tokens_sold, token_decimals, k);
+        // Convert to u128 for calculations to prevent overflow
+        let tokens_sold_u128 = tokens_sold as u128;
+        let tokens_to_buy_u128 = tokens_to_buy as u128;
+        let k_u128 = k as u128;
+        let scaling_factor_u128 = SCALING_FACTOR as u128;
+
+        // For a linear bonding curve: price = k * tokens_sold / SCALING_FACTOR
+        // The integral of this from tokens_sold to (tokens_sold + tokens_to_buy) is:
+        // cost = k * (tokens_to_buy * (2 * tokens_sold + tokens_to_buy)) / (2 * SCALING_FACTOR)
+
+        let numerator = k_u128 * tokens_to_buy_u128 * (2u128 * tokens_sold_u128 + tokens_to_buy_u128);
+        let denominator = 2u128 * scaling_factor_u128;
+
+        assert!(denominator != 0, EDivisionByZero);
         
-        // End price after purchase
-        let end_price = calculate_price(tokens_sold + tokens_to_buy, token_decimals, k);
-        
-        // Average price
-        let avg_price = (start_price + end_price) / 2;
-        
-        // Total cost = avg_price * tokens_to_buy
-        let cost = (avg_price as u128) * (tokens_to_buy as u128);
+        let mut cost = numerator / denominator;
+
+        // Apply decimal adjustment to convert from token units to USDC units
+        let decimal_adjustment = 10u128.pow((token_decimals as u8) - 6);
+        cost = cost / decimal_adjustment;
+
+        // Ensure minimum cost of 1 if tokens are being bought and k > 0
+        if (cost == 0 && tokens_to_buy > 0 && k > 0) { 
+            cost = 1; 
+        };
         
         assert!(cost <= 18446744073709551615u128, EOverflow);
         

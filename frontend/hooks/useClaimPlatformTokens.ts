@@ -24,6 +24,7 @@ const MOVE_ERROR_CODES = {
   10: "Insufficient tokens available for sale",
   11: "Vesting not ready",
   12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
+  13: "Token Claimed - You have already claimed your tokens",
 } as const;
 
 const useClaimPlatformTokens = () => {
