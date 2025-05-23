@@ -11,7 +11,7 @@
 ## Features
 
 - **Token Creation**: Deploy tokens with customizable supply and funding goals.
-- **Bonding Curve Pricing**: Dynamic pricing for fair and transparent token distribution.
+- **Bonding Curve Pricing**: linear bonding curve pricing model for fair and transparent token distribution.
 - **Cetus Protocol Integration**: Automatically create TOKEN/USDC liquidity pools on Cetus with a 0.05% fee tier.
 - **Vesting System**: Secure vesting schedules for creator and platform tokens.
 - **Sui Blockchain**: High-throughput, low-fee transactions for scalable launches.
