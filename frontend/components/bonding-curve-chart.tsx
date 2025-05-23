@@ -66,7 +66,12 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
             text.setAttribute("y", (y - 5).toString())
             text.setAttribute("fill", "rgba(255, 255, 255, 0.5)")
             text.setAttribute("font-size", "10")
-            text.textContent = `$${price.toFixed(2)}`
+            text.textContent = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 6
+            }).format(price)
             grid.appendChild(text)
         }
 
@@ -89,7 +94,11 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
             text.setAttribute("y", (height - 5).toString())
             text.setAttribute("fill", "rgba(255, 255, 255, 0.5)")
             text.setAttribute("font-size", "10")
-            text.textContent = formatTokenAmount(amount)
+            text.textContent = new Intl.NumberFormat('en-US', {
+                style: 'decimal',
+                maximumFractionDigits: 1,
+                notation: 'compact'
+            }).format(amount)
             grid.appendChild(text)
         }
 
@@ -129,6 +138,20 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
             priceLine.setAttribute("stroke-dasharray", "4,4")
             svg.appendChild(priceLine)
 
+            // Price Label
+            const priceLabel = document.createElementNS("http://www.w3.org/2000/svg", "text")
+            priceLabel.setAttribute("x", "5")
+            priceLabel.setAttribute("y", (scaleY(currentPrice) - 5).toString())
+            priceLabel.setAttribute("fill", "#00c4b4")
+            priceLabel.setAttribute("font-size", "10")
+            priceLabel.textContent = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 6,
+                maximumFractionDigits: 6
+            }).format(currentPrice)
+            svg.appendChild(priceLabel)
+
             // Add current tokens sold line
             const tokensLine = document.createElementNS("http://www.w3.org/2000/svg", "line")
             tokensLine.setAttribute("x1", scaleX(tokensSold).toString())
@@ -156,15 +179,6 @@ export default function BondingCurveChart({ k, totalSupply, decimals, tokensSold
         // Convert to USDC per whole token:
         // (base USDC / 1e6) / (base token / 1e9) = priceBaseUSDC * 1e3
         return priceBaseUSDC * 1000;
-    }
-
-    function formatTokenAmount(amount: number): string {
-        if (amount >= 1_000_000) {
-            return `${(amount / 1_000_000).toFixed(1)}M`
-        } else if (amount >= 1_000) {
-            return `${(amount / 1_000).toFixed(1)}K`
-        }
-        return amount.toFixed(0)
     }
 
     return (
