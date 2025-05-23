@@ -440,7 +440,7 @@ export default function FaqsAndSupport() {
                                 </a>
 
                                 <a
-                                    href="https://twitter.com"
+                                    href="https://x.com/BondCraftSui"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/50 transition-colors"

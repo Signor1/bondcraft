@@ -24,9 +24,6 @@ export default function Footer() {
                     <Link href="/" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
                         Terms
                     </Link>
-                    <Link href="/faq" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-                        FAQ
-                    </Link>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -40,7 +37,7 @@ export default function Footer() {
                         <span className="sr-only">GitHub</span>
                     </Link>
                     <Link
-                        href="https://twitter.com"
+                        href="https://x.com/BondCraftSui"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground transition-colors hover:text-foreground"
