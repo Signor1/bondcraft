@@ -130,6 +130,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
     const handleBootstrapLiquidity = async () => {
         await handleLiquidityBootstrap({
             launchpadId: params.id,
+            tokenMetadataId: launchpad?.metadataId || "",
             typeOfCoin: launchpad?.coinType || "",
         })
         refetch()

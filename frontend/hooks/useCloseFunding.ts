@@ -167,7 +167,7 @@ const useCloseFunding = () => {
 
         // Invalidate queries to refresh the launchpad data
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
-        queryClient.invalidateQueries({ queryKey: ["launchpad"] });
+        queryClient.invalidateQueries({ queryKey: ["launchpad", launchpadId] });
         queryClient.invalidateQueries({ queryKey: ["user-launchpads"] });
       } catch (error: any) {
         // Dismiss loading toast
