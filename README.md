@@ -41,6 +41,11 @@ sequenceDiagram
     Launchpad->>Creator: Transfer LP NFT
 ```
 
+### Published Package & Factory ID
+
+- Published BondCraft [Package ID](https://suiscan.xyz/testnet/object/0x9495333f9d631a7e558f4a0f2577f9a9c95d19ac1363a8322abd6b228151de26/tx-blocks)
+- BondCraft Factory ID [Factory ID](https://suiscan.xyz/testnet/object/0x545a131ac41903f9e9a822c5b7ebd97db5df1faaa7f1d30c3dea176207237945/tx-blocks)
+
 ### Roadmap
 
 - **Pyth Network Integration (DeFi):**
