@@ -191,7 +191,6 @@ const useClaimCreatorTokens = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      suiClient,
       parseMoveAbortError,
     ]
   );

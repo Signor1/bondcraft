@@ -191,7 +191,6 @@ const useClaimPlatformTokens = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      suiClient,
       parseMoveAbortError,
     ]
   );

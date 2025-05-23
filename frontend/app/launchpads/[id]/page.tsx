@@ -29,7 +29,6 @@ import { ArrowRight, ExternalLink, Clock, Coins, Users, ChevronRight } from "luc
 import Image from "next/image"
 import useGetLaunchpadDetails from "@/hooks/useGetLaunchpadDetails"
 import { useEffect, useState } from "react"
-import { useCurrentAccount } from "@mysten/dapp-kit"
 import useBuyToken from "@/hooks/useBuyToken"
 import useCloseFunding from "@/hooks/useCloseFunding"
 import useClaimCreatorTokens from "@/hooks/useClaimCreatorTokens"
@@ -46,7 +45,6 @@ interface PageProps {
 }
 
 export default function LaunchpadDetailsPage({ params }: PageProps) {
-    const account = useCurrentAccount();
     const { launchpad, isLoading, isError, error, refetch } = useGetLaunchpadDetails(params.id)
     const [estimatedCost, setEstimatedCost] = useState("0.00")
     const [tokenAmount, setTokenAmount] = useState(0)

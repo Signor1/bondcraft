@@ -365,7 +365,6 @@ const useBootstrapLiquidity = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      suiClient,
       parseMoveAbortError,
       findCoinMetadata,
     ]

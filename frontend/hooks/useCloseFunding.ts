@@ -188,7 +188,6 @@ const useCloseFunding = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      suiClient,
       parseMoveAbortError,
     ]
   );

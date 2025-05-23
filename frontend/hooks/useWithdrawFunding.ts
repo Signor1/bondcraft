@@ -208,7 +208,6 @@ const useWithdrawFunding = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      suiClient,
       parseMoveAbortError,
     ]
   );
