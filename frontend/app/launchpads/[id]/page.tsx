@@ -53,13 +53,20 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
     // Calculate estimated cost when token amount changes
     useEffect(() => {
         if (launchpad && tokenAmount > 0) {
-            const currentPrice = launchpad.currentPrice || 0
-            const cost = currentPrice * tokenAmount
-            setEstimatedCost(cost.toFixed(6))
+            // Convert input tokens to base units
+            const tokenBase = tokenAmount * (10 ** launchpad.params.decimals);
+
+            // Calculate cost in base USDC
+            const costBaseUSDC = (launchpad.params.k * tokenBase) / 1e24;
+
+            // Convert to whole USDC
+            const costUSDC = costBaseUSDC / 1e6;
+
+            setEstimatedCost(costUSDC.toFixed(6));
         } else {
-            setEstimatedCost("0.00")
+            setEstimatedCost("0.000000");
         }
-    }, [tokenAmount, launchpad])
+    }, [tokenAmount, launchpad]);
 
     // Handle token amount input change
     const handleTokenAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,7 +306,7 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-sm text-muted-foreground">Funds Raised</span>
-                                            <span>{launchpad.fundingBalance.toLocaleString()} USDC</span>
+                                            <span>{launchpad.fundingBalance.toFixed(6)} USDC</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-sm text-muted-foreground">Progress</span>
@@ -341,12 +348,12 @@ export default function LaunchpadDetailsPage({ params }: PageProps) {
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between text-sm">
                                         <label htmlFor="cost">Estimated Cost (USDC)</label>
-                                        <span className="text-xs text-muted-foreground">Price: ${launchpad.currentPrice.toFixed(6)}</span>
+                                        <span className="text-xs text-muted-foreground">Price: ${(launchpad.currentPrice).toFixed(6)}</span>
                                     </div>
                                     <Input id="cost" type="text" placeholder="0.00" disabled className="font-mono" value={estimatedCost} />
                                 </div>
 
-                                <Button onClick={handleBuyTokens} className="w-full" size="lg" disabled={tokenAmount <= 0 || tokenAmount > 1000000 || launchpad.phaseStr !== "open"}>
+                                <Button onClick={handleBuyTokens} className="w-full" size="lg" disabled={tokenAmount <= 0 || tokenAmount > 1000 || launchpad.phaseStr !== "open"}>
                                     Buy Tokens
                                 </Button>
 

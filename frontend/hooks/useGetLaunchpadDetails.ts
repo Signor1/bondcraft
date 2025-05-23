@@ -55,7 +55,7 @@ const calculateBondingCurvePrice = (
   // Matches contract's formula: price = (k * tokens_sold) / SCALING_FACTOR
   const priceBaseUSDC = (k * tokensSoldBase) / SCALING_FACTOR;
 
-  return priceBaseUSDC;
+  return priceBaseUSDC * 1000;
 };
 
 const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
@@ -200,7 +200,7 @@ const useGetLaunchpadDetails = (launchpadId: string | undefined) => {
         );
 
         const priceInUSDCBase = calculateBondingCurvePrice(
-          tokensSold,
+          Number(tokensSold),
           k
         );
 

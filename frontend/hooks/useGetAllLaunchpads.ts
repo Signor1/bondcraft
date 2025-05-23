@@ -31,7 +31,7 @@ const calculateBondingCurvePrice = (
   // Matches contract's formula: price = (k * tokens_sold) / SCALING_FACTOR
   const priceBaseUSDC = (k * tokensSoldBase) / SCALING_FACTOR;
 
-  return priceBaseUSDC;
+  return priceBaseUSDC * 1000;
 };
 
 const useGetAllLaunchpads = () => {
@@ -145,10 +145,7 @@ const useGetAllLaunchpads = () => {
             phaseStr = "open"; // Default case
         }
 
-        const priceInUSDCBase = calculateBondingCurvePrice(
-          tokens_sold,
-          k
-        );
+        const priceInUSDCBase = calculateBondingCurvePrice(tokens_sold, k);
 
         const currentPrice = priceInUSDCBase;
 
