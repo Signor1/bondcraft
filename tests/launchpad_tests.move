@@ -3,7 +3,7 @@ module bond_craft::launchpad_tests;
 
 use bond_craft::bonding_curve;
 use bond_craft::launchpad::{Self, Launchpad};
-use bond_craft::testtoken::{TESTTOKEN, test_init};
+use bond_craft::testtoken::{Self, TESTTOKEN};
 use cetus_clmm::config;
 use cetus_clmm::factory;
 use sui::clock;
@@ -24,7 +24,7 @@ const PURCHASE_AMOUNT: u64 = 1_000_000; // 1M tokens
 
 // Test setup function
 fun setup(ctx: &mut TxContext) {
-    test_init(ctx);
+    testtoken::test_init(ctx);
 }
 
 #[test]
