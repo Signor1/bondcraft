@@ -5,7 +5,7 @@ module bond_craft::bonding_curve {
     const EOverflow: u64 = 1001;
 
     // Scaling factor to handle precision in calculations
-    const SCALING_FACTOR: u128 = 1_000_000_000_000_000_000_000_000; // 10^24
+    const SCALING_FACTOR: u128 = 1_000_000_000_000_000_000; // 10^18
 
     /// Calculate the steepness factor `k` for the linear bonding curve.
     /// - `funding_goal`: Base units of funding token (e.g., USDC base units)
