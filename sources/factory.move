@@ -1,174 +1,159 @@
-module bond_craft::factory{
-    use sui::table::{Self, Table};
-    use bond_craft::launchpad;
-    use sui::coin::{TreasuryCap, CoinMetadata};
-    use sui::event;
+module bond_craft::factory;
 
-    // Error codes
-    const ENotFound: u64 = 0;
-    const EInvalidSupply: u64 = 1;
-    const EInvalidName: u64 = 2;
-    const EInvalidSymbol: u64 = 3;
-    const EInvalidDecimals: u64 = 4;
+use bond_craft::launchpad;
+use sui::coin::{TreasuryCap, CoinMetadata};
+use sui::event;
+use sui::table::{Self, Table};
 
-    public struct LaunchpadFactory has key {
-        id: UID,
-        launchpad_count: u64,
-        launchpads: Table<address, vector<ID>>,
-        all_launchpads: vector<ID>,
-    }
+// Error codes
+const ENotFound: u64 = 0;
+const EInvalidSupply: u64 = 1;
+const EInvalidName: u64 = 2;
+const EInvalidSymbol: u64 = 3;
+const EInvalidDecimals: u64 = 4;
 
-    // Event structs
-    public struct FactoryCreatedEvent has copy, drop {
-        sender: address,
-        factory_id: address,
-        epoch: u64,
-    }
+public struct LaunchpadFactory has key {
+    id: UID,
+    launchpad_count: u64,
+    launchpads: Table<address, vector<ID>>,
+    all_launchpads: vector<ID>,
+}
 
-    public struct LaunchpadCreatedEvent has copy, drop {
-        sender: address,
-        factory_id: address,
-        launchpad_id: address,
-        total_supply: u64,
-        funding_goal: u64,
-        epoch: u64,
-    }
+// Event structs
+public struct FactoryCreatedEvent has copy, drop {
+    sender: address,
+    factory_id: address,
+    epoch: u64,
+}
 
-    fun init(ctx: &mut TxContext){
-        let sender = tx_context::sender(ctx);
+public struct LaunchpadCreatedEvent has copy, drop {
+    sender: address,
+    factory_id: address,
+    launchpad_id: address,
+    total_supply: u64,
+    funding_goal: u64,
+    epoch: u64,
+}
 
-        let factory = LaunchpadFactory {
-            id: object::new(ctx),
-            launchpad_count: 0,
-            launchpads: table::new(ctx),
-            all_launchpads: vector::empty<ID>(),
-        };
-        let factory_id = object::uid_to_address(&factory.id);
-        transfer::share_object(factory);
+fun init(ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
 
-        // Emit event
-        event::emit(FactoryCreatedEvent {
-            sender,
-            factory_id,
-            epoch: tx_context::epoch(ctx),
-        });
-    }
+    let factory = LaunchpadFactory {
+        id: object::new(ctx),
+        launchpad_count: 0,
+        launchpads: table::new(ctx),
+        all_launchpads: vector::empty<ID>(),
+    };
+    let factory_id = object::uid_to_address(&factory.id);
+    transfer::share_object(factory);
 
-    #[allow(lint(self_transfer))]
-    public fun create_launchpad<T>(
-        factory: &mut LaunchpadFactory,
-        treasury_cap: TreasuryCap<T>,
-        metadata: &CoinMetadata<T>,
-        total_supply: u64,
-        funding_tokens: u64,
-        creator_tokens: u64,
-        liquidity_tokens: u64,
-        platform_tokens: u64,
-        funding_goal: u64,
-        ctx: &mut TxContext
-    ) {
-        assert!(
-            funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
-            EInvalidSupply
-        );
+    // Emit event
+    event::emit(FactoryCreatedEvent {
+        sender,
+        factory_id,
+        epoch: tx_context::epoch(ctx),
+    });
+}
 
-        assert!(!metadata.get_name().is_empty(), EInvalidName);
-        assert!(!metadata.get_symbol().is_empty(), EInvalidSymbol);
-        assert!(metadata.get_decimals() == 9, EInvalidDecimals);
-        
-        let creator = tx_context::sender(ctx);
-        let platform_admin = creator;
+#[allow(lint(self_transfer))]
+public fun create_launchpad<T>(
+    factory: &mut LaunchpadFactory,
+    treasury_cap: TreasuryCap<T>,
+    metadata: &CoinMetadata<T>,
+    total_supply: u64,
+    funding_tokens: u64,
+    creator_tokens: u64,
+    liquidity_tokens: u64,
+    platform_tokens: u64,
+    funding_goal: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(
+        funding_tokens + creator_tokens + liquidity_tokens + platform_tokens == total_supply,
+        EInvalidSupply,
+    );
 
-        let launchpad = launchpad::create(
-            treasury_cap,
-            metadata,
-            total_supply,
-            funding_tokens,
-            creator_tokens,
-            liquidity_tokens,
-            platform_tokens,
-            funding_goal,
-            platform_admin,
-            ctx
-        );
-        let launchpad_id = launchpad;
-        let factory_id = object::uid_to_address(&factory.id);
+    assert!(!metadata.get_name().is_empty(), EInvalidName);
+    assert!(!metadata.get_symbol().is_empty(), EInvalidSymbol);
+    assert!(metadata.get_decimals() == 9, EInvalidDecimals);
 
-        // Updating factory state using helper functions
-        add_launchpad_to_creator(factory, creator, launchpad_id);
-        add_to_all_launchpads(factory, launchpad_id);
-        increment_launchpad_count(factory);
+    let creator = tx_context::sender(ctx);
+    let platform_admin = creator;
 
-        // Emit event
-        event::emit(LaunchpadCreatedEvent {
-            sender: creator,
-            factory_id,
-            launchpad_id: object::id_to_address(&launchpad_id),
-            total_supply,
-            funding_goal,
-            epoch: tx_context::epoch(ctx),
-        });
-    }
+    let launchpad = launchpad::create(
+        treasury_cap,
+        metadata,
+        total_supply,
+        funding_tokens,
+        creator_tokens,
+        liquidity_tokens,
+        platform_tokens,
+        funding_goal,
+        platform_admin,
+        ctx,
+    );
+    let launchpad_id = launchpad;
+    let factory_id = object::uid_to_address(&factory.id);
 
-    // Helper function to check if a creator has launchpads
-    public fun has_launchpads(factory: &LaunchpadFactory, creator: address): bool {
-        table::contains(&factory.launchpads, creator)
-    }
+    // Updating factory state using helper functions
+    add_launchpad_to_creator(factory, creator, launchpad_id);
+    add_to_all_launchpads(factory, launchpad_id);
+    increment_launchpad_count(factory);
 
-    // Helper function to add a launchpad ID to a creator’s list
-    public fun add_launchpad_to_creator(factory: &mut LaunchpadFactory, creator: address, launchpad_id: ID) {
-        if (!table::contains(&factory.launchpads, creator)) {
-            table::add(&mut factory.launchpads, creator, vector::empty());
-        };
-        vector::push_back(table::borrow_mut(&mut factory.launchpads, creator), launchpad_id);
-    }
+    // Emit event
+    event::emit(LaunchpadCreatedEvent {
+        sender: creator,
+        factory_id,
+        launchpad_id: object::id_to_address(&launchpad_id),
+        total_supply,
+        funding_goal,
+        epoch: tx_context::epoch(ctx),
+    });
+}
 
-    // Helper function to add a launchpad ID to all_launchpads
-    public fun add_to_all_launchpads(factory: &mut LaunchpadFactory, launchpad_id: ID) {
-        vector::push_back(&mut factory.all_launchpads, launchpad_id);
-    }
+// Helper function to check if a creator has launchpads
+public fun has_launchpads(factory: &LaunchpadFactory, creator: address): bool {
+    table::contains(&factory.launchpads, creator)
+}
 
-    // Helper function to increment launchpad_count
-    public fun increment_launchpad_count(factory: &mut LaunchpadFactory) {
-        factory.launchpad_count = factory.launchpad_count + 1;
-    }
+// Helper function to add a launchpad ID to a creator’s list
+public fun add_launchpad_to_creator(
+    factory: &mut LaunchpadFactory,
+    creator: address,
+    launchpad_id: ID,
+) {
+    if (!table::contains(&factory.launchpads, creator)) {
+        table::add(&mut factory.launchpads, creator, vector::empty());
+    };
+    vector::push_back(table::borrow_mut(&mut factory.launchpads, creator), launchpad_id);
+}
 
-    //============GETTER FUNCTIONS================
-    
-    public fun get_launchpads_by_creator(
-        factory: &LaunchpadFactory,
-        creator: address
-    ): &vector<ID> {
-        assert!(table::contains(&factory.launchpads, creator), ENotFound);
-        table::borrow(&factory.launchpads, creator)
-    }
+// Helper function to add a launchpad ID to all_launchpads
+public fun add_to_all_launchpads(factory: &mut LaunchpadFactory, launchpad_id: ID) {
+    vector::push_back(&mut factory.all_launchpads, launchpad_id);
+}
 
-    public fun get_all_launchpads(factory: &LaunchpadFactory): &vector<ID>{
-        &factory.all_launchpads
-    }
+// Helper function to increment launchpad_count
+public fun increment_launchpad_count(factory: &mut LaunchpadFactory) {
+    factory.launchpad_count = factory.launchpad_count + 1;
+}
 
-    public fun get_launchpad_count(factory: &LaunchpadFactory): u64{
-        factory.launchpad_count
-    }
+//============GETTER FUNCTIONS================
 
-    #[test_only]
-        public fun create_factory(ctx: &mut TxContext){
-        let sender = tx_context::sender(ctx);
+public fun get_launchpads_by_creator(factory: &LaunchpadFactory, creator: address): &vector<ID> {
+    assert!(table::contains(&factory.launchpads, creator), ENotFound);
+    table::borrow(&factory.launchpads, creator)
+}
 
-        let factory = LaunchpadFactory {
-            id: object::new(ctx),
-            launchpad_count: 0,
-            launchpads: table::new(ctx),
-            all_launchpads: vector::empty<ID>(),
-        };
-        let factory_id = object::uid_to_address(&factory.id);
-        transfer::transfer(factory, sender);
+public fun get_all_launchpads(factory: &LaunchpadFactory): &vector<ID> {
+    &factory.all_launchpads
+}
 
-        // Emit event
-        event::emit(FactoryCreatedEvent {
-            sender,
-            factory_id,
-            epoch: tx_context::epoch(ctx),
-        });
-    }
+public fun get_launchpad_count(factory: &LaunchpadFactory): u64 {
+    factory.launchpad_count
+}
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(ctx);
 }
