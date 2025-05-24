@@ -8,10 +8,10 @@ public struct TESTUSDC has drop {}
 fun init(witness: TESTUSDC, ctx: &mut TxContext) {
     let (treasury_cap, metadata) = coin::create_currency<TESTUSDC>(
         witness,
-        6,
-        vector[],
-        vector[],
-        vector[],
+        9,
+        b"TESTUSDC",
+        b"Test USDC",
+        b"Test USDC for testing purposes",
         option::none(),
         ctx,
     );
