@@ -17,23 +17,11 @@ import { normalizeSuiObjectId } from "@mysten/sui/utils";
 import { useRouter } from "next/navigation";
 import { convertToBaseUnits, convertUSDCToBase } from "@/utils/decimals";
 import { formSchema } from "@/utils/schema";
+import { SuiClientErrorDecoder } from "suiclient-error-decoder";
+import { bondCraftErrorCodes } from "@/utils/bondCraftErrorCodes";
 
 // Extend formSchema to handle platformAdmin default
 type FormValues = z.infer<typeof formSchema>;
-
-// Error code mappings from your Move contract
-const MOVE_ERROR_CODES = {
-  1: "Invalid token allocation",
-  2: "Invalid bonding curve parameters",
-  5: "Invalid funding goal",
-  6: "Invalid total supply",
-  7: "Insufficient payment - you need more USDC for this purchase",
-  8: "Invalid phase - launchpad is not currently accepting purchases",
-  9: "Unauthorized access",
-  10: "Insufficient tokens available for sale",
-  11: "Vesting not ready",
-  12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
-} as const;
 
 const useCreateLaunchpad = () => {
   const queryClient = useQueryClient();
@@ -53,40 +41,14 @@ const useCreateLaunchpad = () => {
     []
   );
 
-  // Helper function to parse Move abort errors
-  const parseMoveAbortError = useCallback((error: any): string => {
-    // Try different ways to get the error string
-    const errorString =
-      error?.toString() || error?.message || String(error) || "";
-
-    // Multiple regex patterns to catch different formats
-    const patterns = [
-      /MoveAbort\([^,]+,\s*(\d+)\)/,
-      /MoveAbort\([^)]+\)\s*,\s*(\d+)\)/,
-      /}, (\d+)\) in command/,
-      /abort_code:\s*(\d+)/,
-      /error_code:\s*(\d+)/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = errorString.match(pattern);
-      if (match) {
-        const errorCode = parseInt(match[1]);
-
-        const errorMessage =
-          MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
-
-        if (errorMessage) {
-          return `Error Code ${errorCode}: ${errorMessage}`;
-        } else {
-          return `Move Error Code ${errorCode}: Unknown error occurred`;
-        }
-      }
-    }
-
-    // Fallback
-    return errorString || "An unexpected error occurred";
-  }, []);
+  // Error code mappings from your Move contract
+  const errorDecoder = useMemo(
+    () =>
+      new SuiClientErrorDecoder({
+        customErrorCodes: bondCraftErrorCodes,
+      }),
+    []
+  );
 
   // Helper function to wait for transaction to be confirmed
   const waitForTransaction = useCallback(
@@ -96,7 +58,7 @@ const useCreateLaunchpad = () => {
         await suiClient.waitForTransaction({ digest });
 
         // Fetch transaction details with all relevant data
-        return await suiClient.getTransactionBlock({
+        const txBlock = await suiClient.getTransactionBlock({
           digest,
           options: {
             showEffects: true,
@@ -105,6 +67,13 @@ const useCreateLaunchpad = () => {
             showEvents: true,
           },
         });
+
+        if (txBlock.effects?.status.status !== "success") {
+          // Throw the raw Move abort error string
+          throw new Error(txBlock.effects?.status.error);
+        }
+
+        return txBlock;
       } catch (error) {
         console.error("Error waiting for transaction:", error);
         throw error;
@@ -120,21 +89,26 @@ const useCreateLaunchpad = () => {
         return;
       }
 
-      // Loading toast for user feedback
       const loadingToast = toast.loading("Creating your token...");
 
+      let coinPublishingSuccessful = false;
+      let packageId: string;
+      let actualModuleName: string;
+      let coinType: string;
+      let treasuryCapId: string;
+      let metadataId: string;
+
+      // STEP 1: Coin Publishing with separate try-catch
       try {
         // First, load the WASM module and bytecode template
         const wasmModule = await import("@mysten/move-bytecode-template");
         await wasmModule.default(
-          // Use URL.createObjectURL to handle the wasm import
           new URL(
             "@mysten/move-bytecode-template/move_bytecode_template_bg.wasm",
             import.meta.url
           ).toString()
         );
 
-        // Update loading message
         toast.loading("Fetching coin template...", { id: loadingToast });
 
         // Fetch the coin template bytecode
@@ -151,12 +125,11 @@ const useCreateLaunchpad = () => {
         // Helper function to encode text as UTF-8 bytes
         const encodeText = (text: string) => new TextEncoder().encode(text);
 
-        // Get module name in lowercase - ensure it's converted to 3 characters for better compatibility
+        // Get module name in lowercase
         const moduleNameLower = values.tokenSymbol
           .toLowerCase()
           .substring(0, 3);
 
-        // Update loading message
         toast.loading("Customizing your token...", { id: loadingToast });
 
         // Update module name identifiers
@@ -169,7 +142,7 @@ const useCreateLaunchpad = () => {
         updatedBytecode = wasmModule.update_constants(
           updatedBytecode,
           bcs.u8().serialize(values.decimals).toBytes(),
-          bcs.u8().serialize(0).toBytes(), // Original value in template
+          bcs.u8().serialize(0).toBytes(),
           "U8"
         );
 
@@ -213,31 +186,25 @@ const useCreateLaunchpad = () => {
           "Vector(U8)"
         );
 
-        // Convert to array format that Transaction.publish() expects (Array<number>)
+        // Convert to array format that Transaction.publish() expects
         const moduleBytes = Array.from(updatedBytecode);
 
-        // Update loading message
         toast.loading("Publishing coin module...", { id: loadingToast });
 
-        // Build transaction
+        // Build transaction for coin publishing
         const txb = new Transaction();
-
-        // Publish the updated coin module
         const [upgradeCap] = txb.publish({
           modules: [moduleBytes],
           dependencies: [
             normalizeSuiObjectId("0x1"),
             normalizeSuiObjectId("0x2"),
-          ], // Sui framework
+          ],
         });
 
-        // Make sure to transfer the upgrade cap to the sender
         txb.transferObjects([upgradeCap], txb.pure.address(account.address));
-
-        // Set gas budget for the entire transaction
         txb.setGasBudget(2000000000); // 2 SUI
 
-        // Sign and execute the publishing transaction first
+        // Sign and execute the publishing transaction
         const publishResult: SuiSignAndExecuteTransactionOutput =
           await signAndExecuteTransaction({
             transaction: txb,
@@ -245,13 +212,13 @@ const useCreateLaunchpad = () => {
             chain: "sui:testnet",
           });
 
-        // Wait for transaction to be confirmed and get detailed results
-        toast.loading("Waiting for transaction confirmation...", {
+        toast.loading("Waiting for coin publishing confirmation...", {
           id: loadingToast,
         });
+
         const txBlock = await waitForTransaction(publishResult.digest);
 
-        // Find the published package ID from objectChanges (more reliable)
+        // Find the published package ID from objectChanges
         const publishedPackage = txBlock.objectChanges?.find(
           (change) => change.type === "published"
         );
@@ -260,16 +227,15 @@ const useCreateLaunchpad = () => {
           throw new Error("Could not find published package in transaction");
         }
 
-        const packageId = publishedPackage.packageId;
+        packageId = publishedPackage.packageId;
 
         // Extract actual module name from the published package
-        let actualModuleName = moduleNameLower;
+        actualModuleName = moduleNameLower;
         if (publishedPackage.modules && publishedPackage.modules.length > 0) {
           actualModuleName = publishedPackage.modules[0];
         }
 
-        // The correct coin type path with the actual module name
-        const coinType = `${packageId}::${actualModuleName}::${values.tokenSymbol.toUpperCase()}`;
+        coinType = `${packageId}::${actualModuleName}::${values.tokenSymbol.toUpperCase()}`;
 
         // Find TreasuryCap and CoinMetadata directly from objectChanges
         const treasuryCapObj = txBlock.objectChanges?.find(
@@ -301,15 +267,31 @@ const useCreateLaunchpad = () => {
           );
         }
 
-        const treasuryCapId = treasuryCapObj.objectId;
-        const metadataId = metadataObj.objectId;
+        treasuryCapId = treasuryCapObj.objectId;
+        metadataId = metadataObj.objectId;
 
-        // Update loading message
-        toast.loading("Creating launchpad...", { id: loadingToast });
+        // Mark coin publishing as successful
+        coinPublishingSuccessful = true;
 
-        // Now create a second transaction to create the launchpad
+        toast.loading("Coin published successfully! Creating launchpad...", {
+          id: loadingToast,
+        });
+      } catch (error) {
+        // Handle coin publishing errors
+        toast.dismiss(loadingToast);
+        const decoded = errorDecoder.parseError(error);
+        toast.error(`Failed to publish coin: ${decoded.message}`, {
+          position: "top-right",
+          duration: 8000,
+        });
+        console.error("Coin publishing error:", decoded);
+        return; // Exit early if coin publishing fails
+      }
+
+      // 2: Launchpad Creation with separate try-catch
+      try {
+        // Build launchpad creation transaction
         const launchpadTxb = new Transaction();
-
         const decimals = values.decimals;
 
         // Call create_launchpad with the newly created objects
@@ -351,15 +333,15 @@ const useCreateLaunchpad = () => {
             chain: "sui:testnet",
           });
 
-        // Wait for launchpad transaction to be confirmed
         toast.loading("Finalizing your launchpad...", { id: loadingToast });
+
         const launchpadTxBlock = await waitForTransaction(
           launchpadResult.digest
         );
 
         console.log("Launchpad creation completed:", launchpadTxBlock);
 
-        // Dismiss loading toast and show success
+        // Both operations successful
         toast.dismiss(loadingToast);
         toast.success(
           `Launchpad created successfully! Token: ${values.tokenSymbol}`,
@@ -368,24 +350,27 @@ const useCreateLaunchpad = () => {
           }
         );
 
-        // Invalidate launchpad queries
+        // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ["launchpads"] });
-
         queryClient.invalidateQueries({ queryKey: ["user-launchpads"] });
-
         router.push("/my-launchpads");
       } catch (error) {
-        // Dismiss loading toast
+        // Handle launchpad creation errors
         toast.dismiss(loadingToast);
+        const decoded = errorDecoder.parseError(error);
 
-        // Parse the error using our helper function
-        const errorMessage = parseMoveAbortError(error);
+        // Show specific error for launchpad creation failure
+        if (coinPublishingSuccessful) {
+          toast.error(`${decoded.message}`, {
+            position: "top-right",
+            duration: 10000, // Show longer since this is a partial failure
+          });
+        }
 
-        // Show detailed error message to user
-        toast.error(errorMessage, {
-          position: "top-right",
-          duration: 8000, // Show error longer so user can read it
-        });
+        console.error("Launchpad creation error:", decoded);
+
+        // Optionally still invalidate coin-related queries since coin was created
+        queryClient.invalidateQueries({ queryKey: ["user-coins"] });
       }
     },
     [
@@ -394,7 +379,7 @@ const useCreateLaunchpad = () => {
       queryClient,
       waitForTransaction,
       router,
-      parseMoveAbortError,
+      errorDecoder,
     ]
   );
 };

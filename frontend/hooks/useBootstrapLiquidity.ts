@@ -15,6 +15,8 @@ import {
 } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClientErrorDecoder } from "suiclient-error-decoder";
+import { bondCraftErrorCodes } from "@/utils/bondCraftErrorCodes";
 
 // Cetus Protocol Constants
 const CETUS_CONSTANTS = {
@@ -27,36 +29,6 @@ const CETUS_CONSTANTS = {
   CLOCK: "0x6",
   USDC_TYPE,
   USDC_METADATA_ID: USDC_TESTNET_METADATA_ID,
-} as const;
-
-// Error code mappings from your Move contracts
-const MOVE_ERROR_CODES = {
-  // Launchpad errors
-  1: "Invalid token allocation",
-  2: "Invalid bonding curve parameters",
-  5: "Invalid funding goal",
-  6: "Invalid total supply",
-  7: "Insufficient payment - you need more USDC for this purchase",
-  8: "Invalid phase - launchpad must be in CLOSED phase to bootstrap liquidity",
-  9: "Unauthorized access - only the creator can bootstrap liquidity",
-  10: "Insufficient tokens available for sale",
-  11: "Vesting not ready",
-  12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
-
-  // Pool creation errors (from your pool.move)
-  101: "Invalid tick range for liquidity pool",
-  102: "Invalid liquidity amount - must be greater than 0",
-  103: "Invalid tick spacing - must be 100, 500, or 3000",
-  104: "Tick not aligned with tick spacing",
-  105: "Insufficient liquidity - minimum 1000 tokens required for each coin",
-  106: "Invalid price for pool creation",
-
-  // Cetus protocol errors (common ones)
-  201: "Pool already exists",
-  202: "Invalid sqrt price",
-  203: "Tick out of bounds",
-  204: "Insufficient coin amounts",
-  205: "Pool creation failed",
 } as const;
 
 const useBootstrapLiquidity = () => {
@@ -75,85 +47,14 @@ const useBootstrapLiquidity = () => {
     []
   );
 
-  // Helper function to parse Move abort errors
-  const parseMoveAbortError = useCallback((error: any): string => {
-    // Try different ways to get the error string
-    const errorString =
-      error?.toString() || error?.message || String(error) || "";
-
-    // Enhanced patterns to catch various error formats
-    const patterns = [
-      // Standard MoveAbort patterns
-      /MoveAbort\([^,]+,\s*(\d+)\)/,
-      /MoveAbort\([^)]+\)\s*,\s*(\d+)\)/,
-      /}, (\d+)\) in command/,
-      /abort_code:\s*(\d+)/,
-      /error_code:\s*(\d+)/,
-
-      // Cetus-specific patterns
-      /CetusError\((\d+)\)/,
-      /PoolCreationError\((\d+)\)/,
-      /InsufficientLiquidity\((\d+)\)/,
-
-      // Pool module specific patterns
-      /EInvalidTickRange/,
-      /EInvalidLiquidity/,
-      /EInvalidTickSpacing/,
-      /ETickNotAligned/,
-      /EInsufficientLiquidity/,
-      /EInvalidPrice/,
-    ];
-
-    // Check for named errors first
-    if (errorString.includes("EInvalidTickRange"))
-      return "Error: Invalid tick range for liquidity pool";
-    if (errorString.includes("EInvalidLiquidity"))
-      return "Error: Invalid liquidity amount";
-    if (errorString.includes("EInvalidTickSpacing"))
-      return "Error: Invalid tick spacing - must be 100, 500, or 3000";
-    if (errorString.includes("ETickNotAligned"))
-      return "Error: Tick not aligned with tick spacing";
-    if (errorString.includes("EInsufficientLiquidity"))
-      return "Error: Insufficient liquidity for pool creation";
-    if (errorString.includes("EInvalidPrice"))
-      return "Error: Invalid price for pool creation";
-
-    // Check for numeric error codes
-    for (const pattern of patterns) {
-      const match = errorString.match(pattern);
-      if (match) {
-        const errorCode = parseInt(match[1]);
-        const errorMessage =
-          MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
-
-        if (errorMessage) {
-          return `Error Code ${errorCode}: ${errorMessage}`;
-        } else {
-          return `Move Error Code ${errorCode}: Unknown error occurred`;
-        }
-      }
-    }
-
-    // Check for common transaction failures
-    if (errorString.includes("InsufficientGas")) {
-      return "Insufficient gas for transaction. Please increase gas budget.";
-    }
-    if (errorString.includes("ObjectNotFound")) {
-      return "Required object not found. Please check launchpad ID and metadata IDs.";
-    }
-    if (errorString.includes("InvalidObjectOwner")) {
-      return "Invalid object ownership. Please verify you have the correct permissions.";
-    }
-    if (errorString.includes("PackageNotFound")) {
-      return "Smart contract package not found. Please check package deployment.";
-    }
-
-    // Return the original error if we can't parse it
-    return (
-      errorString ||
-      "An unexpected error occurred during liquidity bootstrapping"
-    );
-  }, []);
+  // Error code mappings from your Move contract
+  const errorDecoder = useMemo(
+    () =>
+      new SuiClientErrorDecoder({
+        customErrorCodes: bondCraftErrorCodes,
+      }),
+    []
+  );
 
   // Helper function to wait for transaction to be confirmed
   const waitForTransaction = useCallback(
@@ -163,7 +64,7 @@ const useBootstrapLiquidity = () => {
         await suiClient.waitForTransaction({ digest });
 
         // Fetch transaction details with all relevant data
-        return await suiClient.getTransactionBlock({
+        const txBlock = await suiClient.getTransactionBlock({
           digest,
           options: {
             showEffects: true,
@@ -173,6 +74,13 @@ const useBootstrapLiquidity = () => {
             showBalanceChanges: true,
           },
         });
+
+        if (txBlock.effects?.status.status !== "success") {
+          // Throw the raw Move abort error string
+          throw new Error(txBlock.effects?.status.error);
+        }
+
+        return txBlock;
       } catch (error) {
         console.error("Error waiting for transaction:", error);
         throw error;
@@ -290,19 +198,16 @@ const useBootstrapLiquidity = () => {
         // Dismiss loading toast
         toast.dismiss(loadingToast);
 
-        // Parse the error
-        const errorMessage = parseMoveAbortError(error);
+        // Parse error message
+        const decoded = errorDecoder.parseError(error);
 
         // Show detailed error message to user
-        toast.error(`❌ Failed to bootstrap liquidity: ${errorMessage}`, {
+        toast.error(`${decoded.message}`, {
           position: "top-right",
-          duration: 8000, // Show error longer so user can read it
+          duration: 10000, // Show error longer so user can read it
         });
 
-        console.error("Bootstrap liquidity error:", {
-          error,
-          errorMessage,
-        });
+        console.error("Bootstrap liquidity error:", decoded);
       }
     },
     [
@@ -310,7 +215,7 @@ const useBootstrapLiquidity = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      parseMoveAbortError,
+      errorDecoder,
     ]
   );
 };

@@ -182,7 +182,6 @@ export default function CreatePage() {
                                                             <Input
                                                                 type="number"
                                                                 {...field}
-                                                                defaultValue={9}
                                                                 disabled
                                                                 onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                                                             />
@@ -373,7 +372,7 @@ export default function CreatePage() {
                                         <Button
                                             type="submit"
                                             size="lg"
-                                            disabled={totalAllocations !== watchTotalSupply || isSubmitting}
+                                            disabled={isSubmitting}
                                         >
                                             {isSubmitting ? "Creating..." : "Create Launchpad"}
                                         </Button>

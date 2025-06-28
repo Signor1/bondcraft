@@ -11,20 +11,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PACKAGE_ID } from "@/constant/Modules";
 import type { SuiSignAndExecuteTransactionOutput } from "@mysten/wallet-standard";
 import { getFullnodeUrl } from "@mysten/sui/client";
-
-// Error code mappings from your Move contract
-const MOVE_ERROR_CODES = {
-  1: "Invalid token allocation",
-  2: "Invalid bonding curve parameters",
-  5: "Invalid funding goal",
-  6: "Invalid total supply",
-  7: "Insufficient payment - you need more USDC for this purchase",
-  8: "Invalid phase - launchpad is not currently accepting purchases",
-  9: "Unauthorized access",
-  10: "Insufficient tokens available for sale",
-  11: "Vesting not ready",
-  12: "Excessive purchase - amount exceeds maximum allowed per transaction (1M tokens)",
-} as const;
+import { SuiClientErrorDecoder } from "suiclient-error-decoder";
+import { bondCraftErrorCodes } from "@/utils/bondCraftErrorCodes";
 
 const useCloseFunding = () => {
   const queryClient = useQueryClient();
@@ -42,40 +30,14 @@ const useCloseFunding = () => {
     []
   );
 
-  // Helper function to parse Move abort errors
-  const parseMoveAbortError = useCallback((error: any): string => {
-    // Try different ways to get the error string
-    const errorString =
-      error?.toString() || error?.message || String(error) || "";
-
-    // Multiple regex patterns to catch different formats
-    const patterns = [
-      /MoveAbort\([^,]+,\s*(\d+)\)/,
-      /MoveAbort\([^)]+\)\s*,\s*(\d+)\)/,
-      /}, (\d+)\) in command/,
-      /abort_code:\s*(\d+)/,
-      /error_code:\s*(\d+)/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = errorString.match(pattern);
-      if (match) {
-        const errorCode = parseInt(match[1]);
-
-        const errorMessage =
-          MOVE_ERROR_CODES[errorCode as keyof typeof MOVE_ERROR_CODES];
-
-        if (errorMessage) {
-          return `Error Code ${errorCode}: ${errorMessage}`;
-        } else {
-          return `Move Error Code ${errorCode}: Unknown error occurred`;
-        }
-      }
-    }
-
-    // Fallback
-    return errorString || "An unexpected error occurred";
-  }, []);
+  // Instance of SuiClientErrorDecoder
+  const errorDecoder = useMemo(
+    () =>
+      new SuiClientErrorDecoder({
+        customErrorCodes: bondCraftErrorCodes,
+      }),
+    []
+  );
 
   // Helper function to wait for transaction to be confirmed
   const waitForTransaction = useCallback(
@@ -85,7 +47,7 @@ const useCloseFunding = () => {
         await suiClient.waitForTransaction({ digest });
 
         // Fetch transaction details with all relevant data
-        return await suiClient.getTransactionBlock({
+        const txBlock = await suiClient.getTransactionBlock({
           digest,
           options: {
             showEffects: true,
@@ -94,6 +56,13 @@ const useCloseFunding = () => {
             showEvents: true,
           },
         });
+
+        if (txBlock.effects?.status.status !== "success") {
+          // Throw the raw Move abort error string
+          throw new Error(txBlock.effects?.status.error);
+        }
+
+        return txBlock;
       } catch (error) {
         console.error("Error waiting for transaction:", error);
         throw error;
@@ -174,12 +143,12 @@ const useCloseFunding = () => {
         toast.dismiss(loadingToast);
 
         // Parse the error
-        const errorMessage = parseMoveAbortError(error);
+        const decoded = errorDecoder.parseError(error.message);
 
         // Show detailed error message to user
-        toast.error(errorMessage, {
+        toast.error(`${decoded.message}`, {
           position: "top-right",
-          duration: 8000, // Show error longer so user can read it
+          duration: 10000, // Show error longer so user can read it
         });
       }
     },
@@ -188,7 +157,7 @@ const useCloseFunding = () => {
       signAndExecuteTransaction,
       waitForTransaction,
       queryClient,
-      parseMoveAbortError,
+      errorDecoder,
     ]
   );
 };
